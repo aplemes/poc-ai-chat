@@ -169,11 +169,6 @@ func buildTools() []map[string]interface{} {
 							"type":        "string",
 							"description": "Título da demanda: começa com verbo no infinitivo + escopo. Ex: 'Add the new Payment Method XXX on the website only'",
 						},
-						"demandScope": map[string]interface{}{
-							"type":        "string",
-							"description": "Intra-BU se a demanda é interna à BU; Adeo Platform se deve ser analisada pela plataforma Adeo",
-							"enum":        []string{"Intra-BU", "Adeo Platform"},
-						},
 						"businessLine": map[string]interface{}{
 							"type":        "string",
 							"description": "ID da linha de negócio/organização",
@@ -194,42 +189,45 @@ func buildTools() []map[string]interface{} {
 							},
 						},
 						"busInterested": map[string]interface{}{
-							"type":        "array",
-							"description": "IDs das BUs interessadas/impactadas",
-							"items": map[string]interface{}{
-								"type": "string",
-								"enum": []string{
-									"20047", "20048", "20049", "20050", "20051", "20052",
-									"20053", "20054", "20055", "20056", "20057", "20058",
-									"20059", "20060", "20061", "20062", "20063", "20064",
-									"20065", "20066", "20067", "20068", "20069", "20070",
-									"20071", "20072", "20073", "20074", "20075", "20076",
-									"20077", "20078",
-								},
+							"type":        "string",
+							"description": "ID da BU interessada/impactada",
+							"enum": []string{
+								"20047", "20048", "20049", "20050", "20051", "20052",
+								"20053", "20054", "20055", "20056", "20057", "20058",
+								"20059", "20060", "20061", "20062", "20063", "20064",
+								"20065", "20066", "20067", "20068", "20069", "20070",
+								"20071", "20072", "20073", "20074", "20075", "20076",
+								"20077", "20078",
 							},
 						},
-						"demandContext": map[string]interface{}{
+						"timeSensitive": map[string]interface{}{
 							"type":        "string",
-							"description": "O contexto preciso da demanda: qual é o evento ou situação que a motiva?",
+							"description": "Se a demanda é urgente por questão legal, de segurança ou não há urgência",
+							"enum":        []string{"No", "Legal", "Security"},
 						},
-						"currentSituation": map[string]interface{}{
+						"whyDemand": map[string]interface{}{
 							"type":        "string",
-							"description": "A situação atual: como as coisas funcionam hoje? Quais processos ou ferramentas estão sendo usados?",
-						},
-						"problemsToSolve": map[string]interface{}{
-							"type":        "string",
-							"description": "Os problemas a resolver: quais são os pontos de atrito, frustrações ou ineficiências encontradas?",
+							"description": "Descreva a situação atual, os pontos de dor, comparação com concorrentes e o contexto que motiva a demanda",
 						},
 						"whoIsImpacted": map[string]interface{}{
 							"type":        "string",
 							"description": "Quem é impactado: tipos de usuários/personas e estimativa de quantidade. Ex: 'Customers online: 5% of total = 50,000. Coworkers: not concerned.'",
 						},
+						"benefitCategory": map[string]interface{}{
+							"type":        "string",
+							"description": "Categoria do benefício esperado da demanda",
+							"enum":        []string{"Cost efficiency", "Environmental & social sustainability", "Service quality & security risk", "Customer satisfaction & revenue", "Innovation", "Other"},
+						},
+						"benefitHypothesis": map[string]interface{}{
+							"type":        "string",
+							"description": "Hipóteses do usuário para atingir os benefícios esperados",
+						},
 						"measureBenefits": map[string]interface{}{
 							"type":        "string",
-							"description": "Como medir os benefícios: métricas e timing. Ex: 'GMV per payment method in first 3 months after activation.'",
+							"description": "KPIs e timing para medir os benefícios. Ex: 'GMV per payment method in first 3 months after activation.'",
 						},
 					},
-					"required": []string{"title", "demandScope", "businessLine", "requesterBU", "demandContext", "currentSituation", "problemsToSolve"},
+					"required": []string{"title", "businessLine", "requesterBU", "busInterested", "timeSensitive", "whyDemand", "whoIsImpacted", "benefitCategory", "benefitHypothesis", "measureBenefits"},
 				},
 			},
 		},
@@ -243,11 +241,6 @@ const SystemPrompt = `You are an expert assistant helping Adeo collaborators fil
 **title** (required)
 Start with an infinitive verb and complete with the scope of application.
 Example: "Add the new Payment Method 'XXX' on the website only"
-
-**demandScope** (required) — "Intra-BU" or "Adeo Platform"
-- "Intra-BU": demand stays within the requester's BU for analysis
-- "Adeo Platform": demand goes to the Adeo Platform team for analysis
-Ask the user if this is an internal BU initiative or if it requires Adeo Platform involvement.
 
 **businessLine** (required) — use only the IDs below:
   18518 → Omnicommerce Experience
@@ -278,37 +271,40 @@ Ask the user if this is an internal BU initiative or if it requires Adeo Platfor
   ADEO-8074 → Tecnomat France            | ADEO-8055 → Tecnomat Italy
   ADEO-8056 → Terra Incognita            | ADEO-8060 → Weldom France
 
-**busInterested** (optional) — other BUs already aligned on this demand.
+**busInterested** (required) — one BU already aligned on this demand.
 Use numeric IDs 20047–20078 in the same order as the BU list above (20047 = Adeo Marketplace Services, 20078 = Weldom France).
 
-**demandContext** (required)
-The precise context: what is the event or situation that motivates this demand?
+**timeSensitive** (required) — "No", "Legal", or "Security". Ask if the demand has urgency due to legal or security reasons; if not, use "No".
 
-**currentSituation** (required)
-How are things today? What processes or tools are currently being used?
+**whyDemand** (required)
+A single comprehensive description covering: the context/event that motivates the demand, the current situation and tools in use, and the pain points or inefficiencies to solve.
 
-**problemsToSolve** (required)
-What are the sticking points, frustrations or inefficiencies being encountered?
-
-**whoIsImpacted** (optional)
+**whoIsImpacted** (required)
 The different types of users (personas) impacted and estimated numbers.
 Example: "Customers online: 5% of total = 50,000. Coworkers: not concerned. Partners: not concerned."
 
-**measureBenefits** (optional)
-Metrics and timing to verify the benefits.
+**benefitCategory** (required) — one of:
+  Cost efficiency | Environmental & social sustainability | Service quality & security risk
+  Customer satisfaction & revenue | Innovation | Other
+
+**benefitHypothesis** (required)
+The user's hypothesis on how the demand will achieve the expected benefits.
+
+**measureBenefits** (required)
+KPIs and timing to verify the benefits.
 Example: "GMV per payment method during the first 3 months after activation."
 
 ## Instructions
 
 1. Ask exactly ONE question per message — no preamble, no extra commentary
 2. Infer what you can from context; only ask what you truly cannot infer
-3. Collect all required fields before calling fill_demand_form
+3. You MUST collect ALL fields before calling fill_demand_form — every single field is required
 4. Never invent IDs — use only the values listed above
-5. Once you have all required fields, call fill_demand_form immediately
+5. Only call fill_demand_form when ALL fields have been answered
 
 ## Formatting rules for option fields (select / enum)
 
-When asking about a field that has a predefined set of options (demandScope, businessLine, requesterBU, busInterested):
+When asking about a field that has a predefined set of options (businessLine, requesterBU, busInterested, benefitCategory):
 - Start with one short sentence explaining what the field means and why it matters
 - Then present **only the labels** (never the IDs) as a numbered or bulleted list, one option per line
 - End with a short question asking the user to choose

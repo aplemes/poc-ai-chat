@@ -32,14 +32,14 @@ type Session struct {
 }
 
 type FormFillData struct {
-	Title            string   `json:"title"`
-	DemandScope      string   `json:"demandScope"`
-	BusinessLine     string   `json:"businessLine"`
-	RequesterBU      string   `json:"requesterBU"`
-	BusInterested    []string `json:"busInterested"`
-	DemandContext    string   `json:"demandContext"`
-	CurrentSituation string   `json:"currentSituation"`
-	ProblemsToSolve  string   `json:"problemsToSolve"`
-	WhoIsImpacted    string   `json:"whoIsImpacted"`
-	MeasureBenefits  string   `json:"measureBenefits"`
+	Title              string   `json:"title"`
+	BusinessLine       string   `json:"businessLine"`
+	RequesterBU        string   `json:"requesterBU"`
+	BusInterested      string   `json:"busInterested"`
+	TimeSensitive      string   `json:"timeSensitive"`
+	WhyDemand          string   `json:"whyDemand"`
+	WhoIsImpacted      string   `json:"whoIsImpacted"`
+	BenefitCategory    string   `json:"benefitCategory"`
+	BenefitHypothesis  string   `json:"benefitHypothesis"`
+	MeasureBenefits    string   `json:"measureBenefits"`
 }

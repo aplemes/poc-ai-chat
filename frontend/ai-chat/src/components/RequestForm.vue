@@ -84,18 +84,29 @@ const organizations = [
   { id: '18525', value: 'Digital Data Tech' },
 ]
 
+const benefitCategories = [
+  'Cost efficiency',
+  'Environmental & social sustainability',
+  'Service quality & security risk',
+  'Customer satisfaction & revenue',
+  'Innovation',
+  'Other',
+]
+
+const timeSensitiveOptions = ['No', 'Legal', 'Security'] as const
+
 const chatStore = useChatStore()
 
 const form = ref({
   title: '',
-  demandScope: '' as 'Intra-BU' | 'Adeo Platform' | '',
   businessLine: '',
   requesterBU: '',
-  busInterested: [] as string[],
-  demandContext: '',
-  currentSituation: '',
-  problemsToSolve: '',
+  busInterested: '',
+  timeSensitive: 'No' as string,
+  whyDemand: '',
   whoIsImpacted: '',
+  benefitCategory: '',
+  benefitHypothesis: '',
   measureBenefits: '',
 })
 
@@ -109,14 +120,14 @@ watch(
     const filled = new Set<string>()
 
     if (data.title) { form.value.title = data.title; filled.add('title') }
-    if (data.demandScope) { form.value.demandScope = data.demandScope as 'Intra-BU' | 'Adeo Platform'; filled.add('demandScope') }
     if (data.businessLine) { form.value.businessLine = data.businessLine; filled.add('businessLine') }
     if (data.requesterBU) { form.value.requesterBU = data.requesterBU; filled.add('requesterBU') }
-    if (data.busInterested?.length) { form.value.busInterested = data.busInterested; filled.add('busInterested') }
-    if (data.demandContext) { form.value.demandContext = data.demandContext; filled.add('demandContext') }
-    if (data.currentSituation) { form.value.currentSituation = data.currentSituation; filled.add('currentSituation') }
-    if (data.problemsToSolve) { form.value.problemsToSolve = data.problemsToSolve; filled.add('problemsToSolve') }
+    if (data.busInterested?.length) { form.value.busInterested = data.busInterested[0] ?? ''; filled.add('busInterested') }
+    if (data.timeSensitive) { form.value.timeSensitive = data.timeSensitive; filled.add('timeSensitive') }
+    if (data.whyDemand) { form.value.whyDemand = data.whyDemand; filled.add('whyDemand') }
     if (data.whoIsImpacted) { form.value.whoIsImpacted = data.whoIsImpacted; filled.add('whoIsImpacted') }
+    if (data.benefitCategory) { form.value.benefitCategory = data.benefitCategory; filled.add('benefitCategory') }
+    if (data.benefitHypothesis) { form.value.benefitHypothesis = data.benefitHypothesis; filled.add('benefitHypothesis') }
     if (data.measureBenefits) { form.value.measureBenefits = data.measureBenefits; filled.add('measureBenefits') }
 
     aiFilledFields.value = filled
@@ -133,9 +144,10 @@ function handleSubmit() {
   <form class="request-form" @submit.prevent="handleSubmit">
     <h2 class="form-title">New Request</h2>
 
+    <!-- Tell us more about this demand -->
     <div class="field field--full">
       <label for="title">
-        Title
+        Title of the demand <span class="required">- required</span>
         <span v-if="aiFilledFields.has('title')" class="ai-badge">IA</span>
       </label>
       <p class="field-hint">Start with an infinitive verb + scope. e.g. "Add the new Payment Method 'XXX' on the website only"</p>
@@ -150,26 +162,8 @@ function handleSubmit() {
     </div>
 
     <div class="field">
-      <label for="demandScope">
-        For whom is this demand?
-        <span v-if="aiFilledFields.has('demandScope')" class="ai-badge">IA</span>
-      </label>
-      <p class="field-hint">Intra-BU: stays within your BU. Adeo Platform: sent to Adeo Platform for analysis.</p>
-      <select
-        id="demandScope"
-        v-model="form.demandScope"
-        :class="{ 'ai-filled': aiFilledFields.has('demandScope') }"
-        @change="aiFilledFields.delete('demandScope')"
-      >
-        <option value="" disabled>Select scope</option>
-        <option value="Intra-BU">Intra-BU</option>
-        <option value="Adeo Platform">Adeo Platform</option>
-      </select>
-    </div>
-
-    <div class="field">
       <label for="businessLine">
-        Business Line
+        Business Line <span class="required">- required</span>
         <span v-if="aiFilledFields.has('businessLine')" class="ai-badge">IA</span>
       </label>
       <select
@@ -178,7 +172,7 @@ function handleSubmit() {
         :class="{ 'ai-filled': aiFilledFields.has('businessLine') }"
         @change="aiFilledFields.delete('businessLine')"
       >
-        <option value="" disabled>Select a business line</option>
+        <option value="" disabled>-- Choose an option --</option>
         <option v-for="org in organizations" :key="org.id" :value="org.id">
           {{ org.value }}
         </option>
@@ -187,7 +181,7 @@ function handleSubmit() {
 
     <div class="field">
       <label for="requesterBU">
-        Requester BU
+        Requester BU <span class="required">- required</span>
         <span v-if="aiFilledFields.has('requesterBU')" class="ai-badge">IA</span>
       </label>
       <select
@@ -196,110 +190,129 @@ function handleSubmit() {
         :class="{ 'ai-filled': aiFilledFields.has('requesterBU') }"
         @change="aiFilledFields.delete('requesterBU')"
       >
-        <option value="" disabled>Select a requester BU</option>
+        <option value="" disabled>-- Choose an option --</option>
         <option v-for="req in requesters" :key="req.id" :value="req.id">
           {{ req.value }}
         </option>
       </select>
     </div>
 
-    <div class="field">
+    <div class="field field--full">
       <label for="busInterested">
-        BUs Interested
+        BUs interested <span class="required">- required</span>
         <span v-if="aiFilledFields.has('busInterested')" class="ai-badge">IA</span>
       </label>
       <select
         id="busInterested"
         v-model="form.busInterested"
-        multiple
         :class="{ 'ai-filled': aiFilledFields.has('busInterested') }"
         @change="aiFilledFields.delete('busInterested')"
       >
+        <option value="" disabled>-- Choose an option --</option>
         <option v-for="bu in concerned" :key="bu.id" :value="bu.id">
           {{ bu.value }}
         </option>
       </select>
     </div>
 
-    <div class="field-group field--full">
-      <h3 class="group-title">Why do you make this demand?</h3>
-
-      <div class="field">
-        <label for="demandContext">
-          1. The precise context
-          <span v-if="aiFilledFields.has('demandContext')" class="ai-badge">IA</span>
-        </label>
-        <p class="field-hint">What is the event or situation that motivates it?</p>
-        <textarea
-          id="demandContext"
-          v-model="form.demandContext"
-          rows="3"
-          placeholder="Describe the event or situation that triggers this demand..."
-          :class="{ 'ai-filled': aiFilledFields.has('demandContext') }"
-          @input="aiFilledFields.delete('demandContext')"
-        />
-      </div>
-
-      <div class="field">
-        <label for="currentSituation">
-          2. The current situation
-          <span v-if="aiFilledFields.has('currentSituation')" class="ai-badge">IA</span>
-        </label>
-        <p class="field-hint">How are things going today? What processes or tools are being used?</p>
-        <textarea
-          id="currentSituation"
-          v-model="form.currentSituation"
-          rows="3"
-          placeholder="Describe the current state, tools and processes..."
-          :class="{ 'ai-filled': aiFilledFields.has('currentSituation') }"
-          @input="aiFilledFields.delete('currentSituation')"
-        />
-      </div>
-
-      <div class="field">
-        <label for="problemsToSolve">
-          3. The problems to solve
-          <span v-if="aiFilledFields.has('problemsToSolve')" class="ai-badge">IA</span>
-        </label>
-        <p class="field-hint">What are the sticking points, frustrations or inefficiencies you encounter?</p>
-        <textarea
-          id="problemsToSolve"
-          v-model="form.problemsToSolve"
-          rows="3"
-          placeholder="List the main pain points and inefficiencies..."
-          :class="{ 'ai-filled': aiFilledFields.has('problemsToSolve') }"
-          @input="aiFilledFields.delete('problemsToSolve')"
-        />
+    <!-- Is your demand time sensitive? -->
+    <div class="field field--full">
+      <label>
+        Is your demand time sensitive?
+        <span v-if="aiFilledFields.has('timeSensitive')" class="ai-badge">IA</span>
+      </label>
+      <div class="toggle-group" :class="{ 'ai-filled': aiFilledFields.has('timeSensitive') }">
+        <button
+          v-for="opt in timeSensitiveOptions"
+          :key="opt"
+          type="button"
+          class="toggle-btn"
+          :class="{ 'toggle-btn--active': form.timeSensitive === opt }"
+          @click="form.timeSensitive = opt; aiFilledFields.delete('timeSensitive')"
+        >
+          {{ opt }}
+        </button>
       </div>
     </div>
 
-    <div class="field">
+    <!-- Why do you make this demand? -->
+    <div class="field field--full">
+      <label for="whyDemand">
+        Describe current situation, the pain points, comparison with competitors...
+        <span class="required">- required</span>
+        <span v-if="aiFilledFields.has('whyDemand')" class="ai-badge">IA</span>
+      </label>
+      <textarea
+        id="whyDemand"
+        v-model="form.whyDemand"
+        rows="5"
+        placeholder="Insert your text here"
+        :class="{ 'ai-filled': aiFilledFields.has('whyDemand') }"
+        @input="aiFilledFields.delete('whyDemand')"
+      />
+    </div>
+
+    <!-- Who is impacted -->
+    <div class="field field--full">
       <label for="whoIsImpacted">
-        Who is impacted by this demand?
+        Describe who is impacted <span class="required">- required</span>
         <span v-if="aiFilledFields.has('whoIsImpacted')" class="ai-badge">IA</span>
       </label>
-      <p class="field-hint">List the personas and estimated numbers. e.g. "Customers online: 5% of total = 50,000. Coworkers: not concerned."</p>
       <textarea
         id="whoIsImpacted"
         v-model="form.whoIsImpacted"
-        rows="3"
-        placeholder="Customers: ... / Coworkers: ... / Partners: ..."
+        rows="4"
+        placeholder="Insert your text here"
         :class="{ 'ai-filled': aiFilledFields.has('whoIsImpacted') }"
         @input="aiFilledFields.delete('whoIsImpacted')"
       />
     </div>
 
+    <!-- What are the benefits? -->
     <div class="field">
+      <label for="benefitCategory">
+        Select a category <span class="required">- required</span>
+        <span v-if="aiFilledFields.has('benefitCategory')" class="ai-badge">IA</span>
+      </label>
+      <select
+        id="benefitCategory"
+        v-model="form.benefitCategory"
+        :class="{ 'ai-filled': aiFilledFields.has('benefitCategory') }"
+        @change="aiFilledFields.delete('benefitCategory')"
+      >
+        <option value="" disabled>-- Choose an option --</option>
+        <option v-for="cat in benefitCategories" :key="cat" :value="cat">
+          {{ cat }}
+        </option>
+      </select>
+    </div>
+
+    <div class="field field--full">
+      <label for="benefitHypothesis">
+        What are your hypothesis to meet those benefits? <span class="required">- required</span>
+        <span v-if="aiFilledFields.has('benefitHypothesis')" class="ai-badge">IA</span>
+      </label>
+      <textarea
+        id="benefitHypothesis"
+        v-model="form.benefitHypothesis"
+        rows="4"
+        placeholder="Insert your text here"
+        :class="{ 'ai-filled': aiFilledFields.has('benefitHypothesis') }"
+        @input="aiFilledFields.delete('benefitHypothesis')"
+      />
+    </div>
+
+    <!-- How will you measure those benefits? -->
+    <div class="field field--full">
       <label for="measureBenefits">
-        How will you measure those benefits?
+        What are the KPI to measure? <span class="required">- required</span>
         <span v-if="aiFilledFields.has('measureBenefits')" class="ai-badge">IA</span>
       </label>
-      <p class="field-hint">Provide the metrics and timing. e.g. "GMV per payment method during the first 3 months after activation."</p>
       <textarea
         id="measureBenefits"
         v-model="form.measureBenefits"
-        rows="3"
-        placeholder="Metric: ... / Timing: ..."
+        rows="4"
+        placeholder="Insert your text here"
         :class="{ 'ai-filled': aiFilledFields.has('measureBenefits') }"
         @input="aiFilledFields.delete('measureBenefits')"
       />
@@ -390,19 +403,16 @@ textarea:focus {
   box-shadow: 0 0 0 3px hsla(160, 100%, 37%, 0.08);
 }
 
-select[multiple] {
-  min-height: 120px;
-  padding: 0.25rem 0;
-}
-
-select[multiple] option {
-  padding: 0.35rem 0.75rem;
-}
-
 textarea {
   resize: vertical;
   min-height: 80px;
   line-height: 1.5;
+}
+
+.required {
+  font-weight: 400;
+  color: #e67e22;
+  font-size: 0.8rem;
 }
 
 .field-hint {
@@ -412,21 +422,39 @@ textarea {
   line-height: 1.4;
 }
 
-.field-group {
+.toggle-group {
   display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  padding: 1.25rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #f8fafc;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.group-title {
-  font-size: 0.95rem;
-  font-weight: 600;
+.toggle-btn {
+  padding: 0.45rem 1.25rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
   color: #374151;
-  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.toggle-btn:hover {
+  border-color: #9ca3af;
+}
+
+.toggle-btn--active {
+  border-color: #0d9488;
+  color: #0d9488;
+  background: #f0fdfa;
+  font-weight: 500;
+}
+
+.toggle-group.ai-filled .toggle-btn--active {
+  border-color: hsla(160, 100%, 37%, 0.7);
+  background: hsla(160, 100%, 37%, 0.04);
+  box-shadow: 0 0 0 3px hsla(160, 100%, 37%, 0.08);
 }
 
 .form-actions {

@@ -8,14 +8,14 @@ export interface ChatEvent {
 
 export interface FormFillData {
   title: string
-  demandScope: string
   businessLine: string
   requesterBU: string
-  busInterested: string[]
-  demandContext: string
-  currentSituation: string
-  problemsToSolve: string
+  busInterested: string
+  timeSensitive: string
+  whyDemand: string
   whoIsImpacted: string
+  benefitCategory: string
+  benefitHypothesis: string
   measureBenefits: string
 }
 
