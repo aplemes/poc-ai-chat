@@ -17,14 +17,27 @@ interface Message {
 
 const chatStore = useChatStore()
 
+const languages = [
+  { code: 'pt', label: 'PT', placeholder: 'Descreva sua demanda...', emptyState: 'Me conte o que você precisa criar e vou te ajudar a preencher o formulário.' },
+  { code: 'en', label: 'EN', placeholder: 'Describe your demand...', emptyState: 'Tell me what you need to create and I will help you fill in the form.' },
+  { code: 'es', label: 'ES', placeholder: 'Describe tu demanda...', emptyState: 'Cuéntame qué necesitas crear y te ayudaré a rellenar el formulario.' },
+  { code: 'fr', label: 'FR', placeholder: 'Décrivez votre demande...', emptyState: 'Dites-moi ce que vous souhaitez créer et je vous aiderai à remplir le formulaire.' },
+]
+
 const open = ref(false)
 const input = ref('')
 const messages = ref<Message[]>([])
 const messagesEl = ref<HTMLElement | null>(null)
 const loading = ref(false)
 const sessionId = ref<string | null>(localStorage.getItem('chat_session_id'))
+const language = ref<string>(localStorage.getItem('chat_language') ?? 'en')
 let abortController: AbortController | null = null
 let nextId = 1
+
+function setLanguage(code: string) {
+  language.value = code
+  localStorage.setItem('chat_language', code)
+}
 
 function toggle() {
   open.value = !open.value
@@ -53,7 +66,7 @@ async function send() {
   abortController = new AbortController()
 
   try {
-    const newId = await sendMessage(sessionId.value, text, (event) => {
+    const newId = await sendMessage(sessionId.value, text, language.value, (event) => {
       if (event.type === 'token' && event.content) {
         assistantMsg.text += event.content
         scrollToBottom()
@@ -96,8 +109,19 @@ function onKeydown(e: KeyboardEvent) {
     <Transition name="chat">
       <div v-if="open" class="chat-window">
         <div class="chat-header">
-          <span>Assistente de Demandas</span>
-          <button class="close-btn" @click="toggle" aria-label="Fechar chat">
+          <span>Demand Assistant</span>
+          <div class="lang-selector">
+            <button
+              v-for="lang in languages"
+              :key="lang.code"
+              class="lang-btn"
+              :class="{ 'lang-btn--active': language === lang.code }"
+              @click="setLanguage(lang.code)"
+            >
+              {{ lang.label }}
+            </button>
+          </div>
+          <button class="close-btn" @click="toggle" aria-label="Close chat">
             <svg viewBox="0 0 20 20" fill="currentColor">
               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
             </svg>
@@ -106,7 +130,7 @@ function onKeydown(e: KeyboardEvent) {
 
         <div ref="messagesEl" class="chat-messages">
           <div v-if="messages.length === 0" class="empty-state">
-            Me conte o que você precisa criar e vou te ajudar a preencher o formulário.
+            {{ languages.find(l => l.code === language)?.emptyState }}
           </div>
           <div
             v-for="msg in messages"
@@ -126,7 +150,7 @@ function onKeydown(e: KeyboardEvent) {
           <textarea
             v-model="input"
             rows="1"
-            placeholder="Descreva sua demanda..."
+            :placeholder="languages.find(l => l.code === language)?.placeholder"
             :disabled="loading"
             @keydown="onKeydown"
           />
@@ -213,6 +237,34 @@ function onKeydown(e: KeyboardEvent) {
   color: #fff;
   font-weight: 600;
   font-size: 0.9rem;
+}
+
+.lang-selector {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.lang-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  opacity: 0.7;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.lang-btn:hover {
+  opacity: 1;
+}
+
+.lang-btn--active {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
+  opacity: 1;
 }
 
 .close-btn {

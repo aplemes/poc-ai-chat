@@ -27,6 +27,7 @@ func NewChatHandler(apiKey string) *ChatHandler {
 type messageRequest struct {
 	SessionID string `json:"sessionId"`
 	Message   string `json:"message" binding:"required"`
+	Language  string `json:"language"`
 }
 
 func (h *ChatHandler) SendMessage(c *gin.Context) {
@@ -48,7 +49,7 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Session-ID", session.ID)
 
-	messages := buildMessages(session)
+	messages := buildMessages(session, req.Language)
 
 	var assistantText strings.Builder
 
@@ -87,9 +88,9 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 	writeEvent(c, services.ChatEvent{Type: "done", Content: session.ID})
 }
 
-func buildMessages(session *models.Session) []models.Message {
+func buildMessages(session *models.Session, language string) []models.Message {
 	messages := []models.Message{
-		{Role: models.RoleSystem, Content: services.SystemPrompt},
+		{Role: models.RoleSystem, Content: services.BuildSystemPrompt(language)},
 	}
 	return append(messages, session.Messages...)
 }

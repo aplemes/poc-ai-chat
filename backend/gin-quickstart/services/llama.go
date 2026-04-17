@@ -234,7 +234,22 @@ func buildTools() []map[string]interface{} {
 	}
 }
 
-const SystemPrompt = `You are an expert assistant helping Adeo collaborators fill in a Demand form. You ask questions in the user's language (Portuguese if they write in Portuguese, English otherwise) and collect all required information before submitting.
+var languageNames = map[string]string{
+	"pt": "Portuguese",
+	"en": "English",
+	"es": "Spanish",
+	"fr": "French",
+}
+
+func BuildSystemPrompt(language string) string {
+	lang := languageNames[language]
+	if lang == "" {
+		lang = "English"
+	}
+	return "Converse with the user exclusively in " + lang + ". CRITICAL: All form field values passed to fill_demand_form must ALWAYS be written in English, regardless of the conversation language.\n\n" + systemPromptBase
+}
+
+const systemPromptBase = `You are an expert assistant helping Adeo collaborators fill in a Demand form. You collect all required information before submitting.
 
 ## Form fields and how to fill them
 

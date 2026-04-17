@@ -22,13 +22,14 @@ export interface FormFillData {
 export async function sendMessage(
   sessionId: string | null,
   message: string,
+  language: string,
   onEvent: (event: ChatEvent) => void,
   signal?: AbortSignal,
 ): Promise<string> {
   const response = await fetch(`${API_BASE}/chat/message`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId, message }),
+    body: JSON.stringify({ sessionId, message, language }),
     signal,
   })
 
