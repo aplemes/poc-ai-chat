@@ -10,7 +10,7 @@ export interface FormFillData {
   title: string
   businessLine: string
   requesterBU: string
-  busInterested: string
+  busInterested: string[]
   timeSensitive: string
   whyDemand: string
   whoIsImpacted: string
@@ -25,7 +25,7 @@ export async function sendMessage(
   language: string,
   onEvent: (event: ChatEvent) => void,
   signal?: AbortSignal,
-): Promise<string> {
+): Promise<string | null> {
   const response = await fetch(`${API_BASE}/chat/message`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -37,7 +37,7 @@ export async function sendMessage(
     throw new Error(`HTTP ${response.status}`)
   }
 
-  const newSessionId = response.headers.get('X-Session-ID') ?? sessionId ?? ''
+  const newSessionId = response.headers.get('X-Session-ID') ?? sessionId
 
   const reader = response.body!.getReader()
   const decoder = new TextDecoder()
@@ -52,7 +52,8 @@ export async function sendMessage(
       const lines = buffer.split('\n')
       buffer = lines.pop() ?? ''
 
-      for (const line of lines) {
+      for (const rawLine of lines) {
+        const line = rawLine.replace(/\r$/, '')
         if (!line.startsWith('data: ')) continue
         try {
           const event = JSON.parse(line.slice(6)) as ChatEvent

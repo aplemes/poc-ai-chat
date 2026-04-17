@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { RouterView } from 'vue-router'
 import FloatingChat from './components/FloatingChat.vue'
 </script>
 
@@ -10,7 +9,6 @@ import FloatingChat from './components/FloatingChat.vue'
 </template>
 
 <style scoped>
-
 .logo {
   display: block;
   margin: 0 auto 2rem;
