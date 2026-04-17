@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { ref, nextTick, onUnmounted } from 'vue'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { sendMessage } from '@/services/chatService'
 import { useChatStore } from '@/stores/chat'
+
+function renderMarkdown(text: string): string {
+  return DOMPurify.sanitize(marked.parse(text) as string)
+}
 
 interface Message {
   id: number
@@ -111,6 +117,7 @@ function onKeydown(e: KeyboardEvent) {
             <span v-if="msg.role === 'assistant' && !msg.text && loading" class="typing-indicator">
               <span></span><span></span><span></span>
             </span>
+            <span v-else-if="msg.role === 'assistant'" class="md" v-html="renderMarkdown(msg.text)" />
             <template v-else>{{ msg.text }}</template>
           </div>
         </div>
@@ -380,6 +387,24 @@ function onKeydown(e: KeyboardEvent) {
 .icon-leave-to {
   opacity: 0;
   transform: rotate(30deg) scale(0.8);
+}
+
+.md :deep(p) {
+  margin: 0 0 0.4rem;
+}
+.md :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.md :deep(ol),
+.md :deep(ul) {
+  margin: 0.3rem 0 0.4rem;
+  padding-left: 1.2rem;
+}
+.md :deep(li) {
+  margin-bottom: 0.2rem;
+}
+.md :deep(strong) {
+  font-weight: 600;
 }
 
 @media (max-width: 480px) {
