@@ -41,8 +41,12 @@ func main() {
 }
 
 func corsMiddleware() gin.HandlerFunc {
+	origin := os.Getenv("ALLOWED_ORIGIN")
+	if origin == "" {
+		origin = "*"
+	}
 	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Origin", origin)
 		c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type")
 		c.Header("Access-Control-Expose-Headers", "X-Session-ID")
