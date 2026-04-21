@@ -1,5 +1,7 @@
 # Demand Assistant — AI-Powered Form Filler
 
+**Live:** https://poc-ai-chat-1.onrender.com/
+
 Internal Adeo tooling that lets users describe a demand in natural language. An AI assistant (Llama 3.3 70B via Groq) asks clarifying questions and, when it has enough context, automatically fills a structured demand request form.
 
 ---
