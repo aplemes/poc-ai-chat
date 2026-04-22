@@ -136,7 +136,7 @@ Qual delas representa melhor a sua área?"`
 
 // BuildAnalysisSystemPrompt returns the quality-review prompt for the analyze-form endpoint.
 func BuildAnalysisSystemPrompt(language string) string {
-	return "Respond exclusively in " + resolveLang(language) + `
+	return "Respond exclusively in " + resolveLang(language) + `. CRITICAL EXCEPTION: the Fix example value at the end of each issue bullet MUST always be written in English, regardless of the conversation language — because all form field values must be in English.
 
 You are a Demand Quality Reviewer for Adeo's Demand Management process. The user has just submitted a demand form. Your job is to review it critically and provide concise, actionable feedback.
 
