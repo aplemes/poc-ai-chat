@@ -12,8 +12,8 @@
 
 /* ── Panel ── */
 .chat-panel {
-  width: 380px;
-  height: 520px;
+  width: 420px;
+  height: 540px;
   max-height: calc(100vh - 7rem);
   display: flex;
   flex-direction: column;
@@ -175,12 +175,16 @@
   flex: 1;
   overflow-y: auto;
   padding: var(--space-5) var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
   min-height: 0;
   background: var(--color-neutral-50);
   scroll-behavior: smooth;
+}
+
+/* The role="log" wrapper from ChatMessageList */
+.chat-messages > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .chat-messages::-webkit-scrollbar {
@@ -428,7 +432,7 @@
 @media (max-width: 480px) {
   .chat-panel {
     width: calc(100vw - 2rem);
-    height: calc(100vh - 6rem);
+    height: calc(100dvh - 6rem);
     border-radius: var(--radius-xl);
   }
 }
