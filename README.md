@@ -2,19 +2,31 @@
 
 **Live:** https://poc-ai-chat-1.onrender.com/
 
-Internal Adeo tooling that lets users describe a demand in natural language. An AI assistant (Llama 3.3 70B via Groq) asks clarifying questions and, when it has enough context, automatically fills a structured demand request form.
+Internal Adeo tooling that lets users describe a demand in natural language. An AI assistant (Llama 3.3 70B via Groq) asks clarifying questions and, when it has enough context, auto-fills a structured demand request form and reviews it before submission.
 
 ---
 
 ## How it works
 
 ```
-User types in chat  →  POST /api/chat/message (SSE)
-                    →  Backend sends history to Groq
-                    →  Groq streams tokens back
-                    →  When ready, calls fill_demand_form tool
-                    →  Frontend auto-fills RequestForm fields
-                    →  Fields show "AI" badge (disappears on manual edit)
+User types in FloatingChat
+  → POST /api/chat/message (SSE)
+  → Backend sends full history to Groq
+  → Groq streams tokens back as {type:"token"} events
+  → When AI has all fields → calls propose_form_data tool
+  → Frontend shows ConfirmCard for user review
+  → User confirms → POST /api/chat/confirm
+  → Backend calls fill_demand_form → emits {type:"form_fill"}
+  → Frontend auto-fills RequestForm fields with "AI" badge
+  → User clicks Submit → POST /api/chat/analyze-form (SSE)
+  → AI reviews form quality → AnalysisModal shows structured feedback
+```
+
+Per-field AI assistant (AI button next to each field):
+```
+User clicks AI button on a field
+  → POST /api/chat/field-message (SSE)
+  → Dedicated field-scoped AI fills that single field
 ```
 
 ---
@@ -76,27 +88,54 @@ Open [http://localhost:5173](http://localhost:5173) and click the chat button in
 chat-ai/
 ├── backend/gin-quickstart/
 │   ├── handlers/
-│   │   └── chat.go          # POST /api/chat/message — SSE handler
+│   │   ├── chat.go        # POST /api/chat/message, /confirm — SSE stream handler
+│   │   ├── field.go       # POST /api/chat/field-message — per-field AI handler
+│   │   └── form.go        # POST /api/chat/analyze-form — quality review handler
 │   ├── services/
-│   │   ├── llama.go         # Groq client, streaming, tool call accumulation
-│   │   └── conversation.go  # In-memory sessions (2h TTL, cleanup every 15min)
+│   │   ├── llama.go       # Groq client, streaming, tool call accumulation
+│   │   ├── conversation.go# In-memory sessions (2h TTL, cleanup every 15min)
+│   │   ├── prompts_main.go# System prompts for chat AI and analysis AI
+│   │   ├── prompts_field.go# System prompt for per-field AI
+│   │   └── tools.go       # Tool schemas (propose_form_data, fill_demand_form)
 │   ├── models/
-│   │   └── types.go         # Message, Session, ToolCall, FormFillData
-│   └── main.go              # Routes + CORS middleware
+│   │   └── types.go       # Message, Session, ToolCall, FormFillData
+│   └── main.go            # Routes + CORS middleware
 │
 ├── frontend/ai-chat/src/
 │   ├── components/
-│   │   ├── FloatingChat.vue  # Chat widget — SSE consumer, multi-language
-│   │   └── RequestForm.vue   # Demand form — AI fill + badge UX
+│   │   ├── FloatingChat.vue       # Global chat widget — SSE consumer, multi-language
+│   │   ├── RequestForm.vue        # Demand form — AI fill + badge UX + submit flow
+│   │   ├── AnalysisModal.vue      # Pre-submission AI quality review dialog
+│   │   ├── AnalysisModal.css      # Styles for AnalysisModal
+│   │   ├── FieldChatPanel.vue     # Per-field AI assistant panel
+│   │   ├── chat/
+│   │   │   ├── ChatFab.vue        # Floating action button
+│   │   │   ├── ChatMessageList.vue# Message rendering + markdown
+│   │   │   ├── ConfirmCard.vue    # Propose/confirm card in chat
+│   │   │   └── FloatingChat.css   # Styles for FloatingChat
+│   │   └── form/
+│   │       ├── FieldLabel.vue     # Field label + AI badge
+│   │       ├── SectionIdentity.vue# Title, BU, businessLine fields
+│   │       ├── SectionContext.vue # Why demand, who is impacted fields
+│   │       └── SectionBenefits.vue# Benefit category, hypothesis, KPIs fields
+│   ├── composables/
+│   │   ├── useAiFormFill.ts       # AI-fill state and badge logic
+│   │   ├── useChatStream.ts       # Generic SSE stream hook
+│   │   ├── useFormAnalysis.ts     # Pre-submission analysis flow
+│   │   ├── useFormContext.ts      # Shared form state via provide/inject
+│   │   └── useLanguage.ts         # Language persistence (localStorage)
 │   ├── services/
-│   │   └── chatService.ts   # fetch + SSE stream parser
+│   │   ├── chatService.ts         # fetch + SSE parser for chat/analysis endpoints
+│   │   ├── fieldChatService.ts    # fetch + SSE parser for field-message endpoint
+│   │   └── config.ts              # Base URL and shared fetch config
 │   ├── stores/
-│   │   └── chat.ts          # Pinia bridge: setFormFill / clearFormFill
+│   │   ├── chat.ts                # Pinia bridge: setFormFill / clearFormFill
+│   │   └── fieldChat.ts           # Pinia store for per-field AI state
 │   └── assets/
-│       └── tokens.css       # Design system tokens
+│       └── tokens.css             # Design system tokens
 │
-├── .claude/agents/          # Claude Code subagents
-└── docs/                    # Architecture and feature docs
+├── .claude/agents/                # Claude Code subagents
+└── docs/                          # Architecture and feature docs
 ```
 
 ---
@@ -105,26 +144,65 @@ chat-ai/
 
 ### `POST /api/chat/message`
 
-**Request body**
+Sends a user message and receives an SSE stream.
+
+**Request**
 ```json
-{
-  "sessionId": "abc123" | null,
-  "message": "I need to add a new payment method",
-  "language": "en"
-}
+{ "sessionId": "abc123" | null, "message": "I need to reduce supply chain costs", "language": "en" }
 ```
 
 **Response** — SSE stream, `X-Session-ID` header
-
 ```
 data: {"type":"token","content":"Sure, let me ask..."}
-data: {"type":"token","content":" a few questions."}
-data: {"type":"form_fill","data":{"title":"Add Payment Method X","businessLine":"18518",...}}
+data: {"type":"form_confirm","data":{"title":"Reduce Supply Chain Costs",...}}
+data: {"type":"form_fill","data":{"title":"Reduce Supply Chain Costs","businessLine":"18520",...}}
 data: {"type":"done"}
-data: {"type":"error","data":"something went wrong"}
+data: {"type":"error","content":"something went wrong"}
 ```
 
+| Event | When |
+|---|---|
+| `token` | AI is streaming a reply |
+| `form_confirm` | AI proposes filled fields for user review (ConfirmCard) |
+| `form_fill` | User confirmed — fields applied to the form |
+| `done` | Stream finished |
+| `error` | API or processing error |
+
+### `POST /api/chat/confirm`
+
+Confirms the proposed form data and triggers `fill_demand_form`.
+
+**Request**
+```json
+{ "sessionId": "abc123" }
+```
+
+**Response** — SSE stream (same event types as above)
+
+### `POST /api/chat/field-message`
+
+Per-field AI assistant — fills a single form field.
+
+**Request**
+```json
+{ "sessionId": "abc123" | null, "fieldName": "title", "message": "user input", "language": "en" }
+```
+
+**Response** — SSE stream
+
+### `POST /api/chat/analyze-form`
+
+Streams a quality review of the filled form before submission.
+
+**Request**
+```json
+{ "formData": { "title": "...", "whyDemand": "...", ... }, "language": "en" }
+```
+
+**Response** — SSE stream of `token` events (markdown feedback)
+
 ### `GET /ping`
+
 Health check — returns `{"message":"pong"}`.
 
 ---
@@ -133,22 +211,24 @@ Health check — returns `{"message":"pong"}`.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `title` | text | ✓ | Infinitive verb + scope. e.g. "Add Payment Method X on website" |
+| `title` | text | ✓ | Business need/outcome. Outcome verb + scope. e.g. "Reduce costs in the supply chain" |
 | `businessLine` | select | ✓ | One of 9 organisation IDs (18518–18525) |
 | `requesterBU` | select | ✓ | One of 32 BU IDs (ADEO-XXXX format) |
 | `busInterested` | multi-select | — | Other aligned BUs (IDs 20047–20078) |
-| `timeSensitive` | toggle | — | `No` / `Legal` / `Security` |
-| `whyDemand` | textarea | ✓ | Current situation and pain points |
+| `timeSensitive` | toggle | ✓ | `No` / `Legal` / `Security` |
+| `whyDemand` | textarea | ✓ | Triggering event + current situation/tools + specific pain points |
 | `whoIsImpacted` | textarea | ✓ | Personas and estimated user count |
 | `benefitCategory` | select | ✓ | One of 6 benefit categories |
-| `benefitHypothesis` | textarea | ✓ | How the benefit will be achieved |
-| `measureBenefits` | textarea | ✓ | KPIs and timeframe |
+| `benefitHypothesis` | textarea | ✓ | Causal chain: "We believe X because Y" |
+| `measureBenefits` | textarea | ✓ | Specific KPIs and measurement timeframe |
+
+All field **values** are always stored and submitted in **English**, regardless of the chat language.
 
 ---
 
 ## Languages
 
-The chat widget supports **PT · EN · ES · FR**. Language preference is persisted in `localStorage`.
+The chat widget supports **PT · EN · ES · FR**. Language preference is persisted in `localStorage`. Feedback and conversation are in the selected language; form values are always in English.
 
 ---
 
@@ -208,5 +288,5 @@ This project uses specialized Claude Code subagents for development. They live i
 ## Known limitations
 
 - Sessions are **in-memory only** — restarting the backend loses all conversation history
-- The Submit button is not yet wired to a submission API
+- The Submit button triggers an AI quality review but is not wired to a submission API
 - No authentication or user identity
