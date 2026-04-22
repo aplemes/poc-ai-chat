@@ -53,13 +53,13 @@ function getBuLabel(id: string): string {
       <div class="field field--full">
         <FieldLabel field-name="title" label="Title" required />
         <p class="field-hint">
-          Start with an infinitive verb + scope. e.g. "Add the new Payment Method X on website"
+          Express a business need, not a solution. e.g. "Increase checkout conversion rate on the website for French customers"
         </p>
         <input
           id="title"
           v-model="form.title"
           type="text"
-          placeholder="Add the new... / Improve the... / Enable..."
+          placeholder="Improve the... / Increase... / Reduce... / Enable..."
           :class="{ 'ai-filled': aiFilledFields.has('title'), 'has-error': errors['title'] }"
           @input="clearField('title')"
         />

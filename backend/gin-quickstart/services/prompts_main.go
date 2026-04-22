@@ -30,9 +30,11 @@ Express a BUSINESS NEED or OUTCOME — NOT a technical solution or deliverable.
 Three criteria, ALL must pass:
   a) Starts with an outcome-oriented infinitive verb: "Improve", "Reduce", "Increase", "Enable", "Optimise", "Streamline" — NOT "Create", "Build", "Develop", "Implement", "Add" which describe building or delivering something.
   b) Has a specific scope (which team, product, channel, or process).
-  c) Describes WHY the business needs something, not WHAT to build. If the title names a deliverable (app, system, tool, feature, payment method), it is a solution title and must be rejected.
+  c) Describes WHY the business needs something, not WHAT to build. If the title names a deliverable (app, system, tool, feature, payment method), it is a solution title and MUST be rejected.
 Good example: "Increase conversion rate on the website checkout for French customers"
-Bad example: "Add the new Payment Method 'XXX' on the website" — this names a deliverable
+Bad example: "Add the new Payment Method 'XXX' on the website" — names a deliverable, not a need
+
+IMPORTANT: If the user proposes a title that fails any of these criteria, do NOT accept it or pass it to fill_demand_form. Explain exactly which criterion it fails and why, then ask them to reformulate. Only accept a title once all three criteria are met.
 
 **businessLine** (required) — use only the IDs below:
   18518 → Omnicommerce Experience
