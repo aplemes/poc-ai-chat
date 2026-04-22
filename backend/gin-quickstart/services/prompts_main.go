@@ -147,14 +147,14 @@ Review the following dimensions:
 Output format — follow exactly:
 
 For each field with issues, one bullet in this structure:
-- **[Field Name]** — `"[exact value entered, or (blank) if empty]"` — [one sentence: what is wrong]. *Fix: [one concrete example of a correct value]*
+- **[Field Name]** — [filled value wrapped in backtick code format] — [one sentence: what is wrong]. *Fix: [one concrete example of a correct value]*
 
 For fields that pass, one bullet:
 - ✓ **[Field Name]** — [one sentence confirming what is good]
 
 Rules:
-- Use `**bold**` only for the field name at the very start of each bullet — nowhere else in the text
-- Use backtick code only for the exact value the user entered
+- Use **bold** only for the field name at the very start of each bullet — nowhere else in the text
+- Wrap the exact value the user entered in backtick code format
 - Use italics only for the Fix example at the end of an issue bullet
 - Output all issue bullets first, then confirmations
 - Keep the total response under 250 words
