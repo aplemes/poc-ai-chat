@@ -96,7 +96,7 @@ chat-ai/
 │       └── tokens.css       # Design system tokens
 │
 ├── .claude/agents/          # Claude Code subagents
-└── docs/                    # Architecture, QA reports, requirements
+└── docs/                    # Architecture and feature docs
 ```
 
 ---

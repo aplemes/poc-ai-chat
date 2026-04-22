@@ -12,11 +12,10 @@ O usuário descreve sua necessidade no chat flutuante. A IA faz perguntas até t
 │  │  FloatingChat    │         │      RequestForm          │  │
 │  │                  │         │                           │  │
 │  │  • Exibe msgs    │         │  • title                  │  │
-│  │  • Envia msg     │         │  • demandScope            │  │
-│  │  • Stream tokens │         │  • businessLine           │  │
-│  │  • Recebe        │         │  • requesterBU            │  │
-│  │    form_fill ────┼────────►│  • busInterested          │  │
-│  │                  │         │  • timeSensitive          │  │
+│  │  • Envia msg     │         │  • businessLine           │  │
+│  │  • Stream tokens │         │  • requesterBU            │  │
+│  │  • Recebe        │         │  • busInterested          │  │
+│  │    form_fill ────┼────────►│  • timeSensitive          │  │
 │  │                  │         │  • whyDemand              │  │
 │  │                  │         │  • whoIsImpacted          │  │
 │  │                  │         │  • benefitCategory        │  │
