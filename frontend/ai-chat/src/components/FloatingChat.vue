@@ -2,7 +2,8 @@
 import { ref, nextTick, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import { sendMessage } from '@/services/chatService'
+import { sendMessage, confirmForm } from '@/services/chatService'
+import type { FormFillData } from '@/services/chatService'
 import { useChatStore } from '@/stores/chat'
 
 function renderMarkdown(text: string): string {
@@ -13,18 +14,82 @@ interface Message {
   id: number
   role: 'user' | 'assistant'
   text: string
+  type?: 'text' | 'confirm'
+  confirmData?: FormFillData
+  confirmed?: boolean
 }
 
 const chatStore = useChatStore()
 
 const languages = [
-  { code: 'pt', label: 'PT', placeholder: 'Escreva sua mensagem...', greeting: 'Olá! Como posso ajudar você hoje?', formFilled: 'Formulário preenchido! Revise os campos.', errorProcessing: 'Não consegui processar. Tente novamente.', cancelled: '(cancelado)', errorConnection: 'Sem conexão com o servidor.', footerHint: 'Enter para enviar · Shift+Enter nova linha' },
-  { code: 'en', label: 'EN', placeholder: 'Write your message...', greeting: 'Hello! How can I help you today?', formFilled: 'Form filled! Please review the fields.', errorProcessing: 'Could not process your message. Try again.', cancelled: '(cancelled)', errorConnection: 'Could not connect to the server.', footerHint: 'Enter to send · Shift+Enter for new line' },
-  { code: 'es', label: 'ES', placeholder: 'Escribe tu mensaje...', greeting: '¡Hola! ¿Cómo puedo ayudarte hoy?', formFilled: '¡Formulario completado! Revisa los campos.', errorProcessing: 'No se pudo procesar. Inténtalo de nuevo.', cancelled: '(cancelado)', errorConnection: 'No se pudo conectar al servidor.', footerHint: 'Enter para enviar · Shift+Enter nueva línea' },
-  { code: 'fr', label: 'FR', placeholder: 'Écrivez votre message...', greeting: 'Bonjour ! Comment puis-je vous aider ?', formFilled: 'Formulaire rempli ! Vérifiez les champs.', errorProcessing: 'Impossible de traiter. Réessayez.', cancelled: '(annulé)', errorConnection: 'Connexion au serveur impossible.', footerHint: 'Entrée pour envoyer · Maj+Entrée nouvelle ligne' },
+  {
+    code: 'pt',
+    label: 'PT',
+    placeholder: 'Escreva sua mensagem...',
+    greeting: 'Olá! Como posso ajudar você hoje?',
+    formFilled: 'Formulário preenchido! Revise os campos.',
+    errorProcessing: 'Não consegui processar. Tente novamente.',
+    cancelled: '(cancelado)',
+    errorConnection: 'Sem conexão com o servidor.',
+    footerHint: 'Enter para enviar · Shift+Enter nova linha',
+    confirmTitle: 'Revisar antes de preencher',
+    confirmBtn: 'Confirmar e preencher',
+    correctBtn: 'Corrigir pelo chat',
+    correctionHint: 'Precisa ajustar algo? É só me dizer pelo chat.',
+  },
+  {
+    code: 'en',
+    label: 'EN',
+    placeholder: 'Write your message...',
+    greeting: 'Hello! How can I help you today?',
+    formFilled: 'Form filled! Please review the fields.',
+    errorProcessing: 'Could not process your message. Try again.',
+    cancelled: '(cancelled)',
+    errorConnection: 'Could not connect to the server.',
+    footerHint: 'Enter to send · Shift+Enter for new line',
+    confirmTitle: 'Review before filling',
+    confirmBtn: 'Confirm & fill',
+    correctBtn: 'Correct via chat',
+    correctionHint: 'Need to adjust something? Just tell me in the chat.',
+  },
+  {
+    code: 'es',
+    label: 'ES',
+    placeholder: 'Escribe tu mensaje...',
+    greeting: '¡Hola! ¿Cómo puedo ayudarte hoy?',
+    formFilled: '¡Formulario completado! Revisa los campos.',
+    errorProcessing: 'No se pudo procesar. Inténtalo de nuevo.',
+    cancelled: '(cancelado)',
+    errorConnection: 'No se pudo conectar al servidor.',
+    footerHint: 'Enter para enviar · Shift+Enter nueva línea',
+    confirmTitle: 'Revisar antes de completar',
+    confirmBtn: 'Confirmar y completar',
+    correctBtn: 'Corregir por chat',
+    correctionHint: '¿Necesitas ajustar algo? Solo dímelo por el chat.',
+  },
+  {
+    code: 'fr',
+    label: 'FR',
+    placeholder: 'Écrivez votre message...',
+    greeting: 'Bonjour ! Comment puis-je vous aider ?',
+    formFilled: 'Formulaire rempli ! Vérifiez les champs.',
+    errorProcessing: 'Impossible de traiter. Réessayez.',
+    cancelled: '(annulé)',
+    errorConnection: 'Connexion au serveur impossible.',
+    footerHint: 'Entrée pour envoyer · Maj+Entrée nouvelle ligne',
+    confirmTitle: 'Vérifier avant de remplir',
+    confirmBtn: 'Confirmer et remplir',
+    correctBtn: 'Corriger via chat',
+    correctionHint: "Besoin d'ajuster ? Dites-le moi dans le chat.",
+  },
 ]
 
-const langNames: Record<string, string> = { pt: 'Português', en: 'English', es: 'Español', fr: 'Français' }
+const langNames: Record<string, string> = {
+  pt: 'Português',
+  en: 'English',
+  es: 'Español',
+  fr: 'Français',
+}
 
 const open = ref(false)
 const input = ref('')
@@ -97,31 +162,91 @@ async function send() {
   abortController = new AbortController()
 
   try {
-    const newId = await sendMessage(sessionId.value, text, language.value, (event) => {
-      if (event.type === 'token' && event.content) {
-        assistantMsg.text += event.content
-        scrollToBottom()
-      } else if (event.type === 'form_fill' && event.data) {
-        chatStore.setFormFill(event.data)
-        if (!assistantMsg.text) assistantMsg.text = currentLang().formFilled
-        if (!open.value) hasNewMessage.value = true
-        scrollToBottom()
-      } else if (event.type === 'error') {
-        assistantMsg.text = currentLang().errorProcessing
-      }
-    }, abortController.signal)
+    const newId = await sendMessage(
+      sessionId.value,
+      text,
+      language.value,
+      (event) => {
+        if (event.type === 'token' && event.content) {
+          assistantMsg.text += event.content
+          scrollToBottom()
+        } else if (event.type === 'form_confirm' && event.data) {
+          // Remove the empty assistant placeholder, show confirm card instead
+          messages.value = messages.value.filter((m) => m.id !== assistantMsg.id)
+          messages.value.push({
+            id: nextId++,
+            role: 'assistant',
+            text: '',
+            type: 'confirm',
+            confirmData: event.data,
+            confirmed: false,
+          })
+          if (!open.value) hasNewMessage.value = true
+          scrollToBottom()
+        } else if (event.type === 'form_fill' && event.data) {
+          chatStore.setFormFill(event.data)
+          if (!assistantMsg.text) assistantMsg.text = currentLang().formFilled
+          // Add correction hint as follow-up message
+          messages.value.push({
+            id: nextId++,
+            role: 'assistant',
+            text: currentLang().correctionHint,
+          })
+          if (!open.value) hasNewMessage.value = true
+          scrollToBottom()
+        } else if (event.type === 'error') {
+          assistantMsg.text = currentLang().errorProcessing
+        }
+      },
+      abortController.signal,
+    )
     if (newId) {
       sessionId.value = newId
       localStorage.setItem('chat_session_id', newId)
     }
   } catch (err) {
-    assistantMsg.text = err instanceof Error && err.name === 'AbortError'
-      ? currentLang().cancelled
-      : currentLang().errorConnection
+    assistantMsg.text =
+      err instanceof Error && err.name === 'AbortError'
+        ? currentLang().cancelled
+        : currentLang().errorConnection
   } finally {
     loading.value = false
     abortController = null
   }
+}
+
+async function handleConfirm(msg: Message) {
+  if (!sessionId.value || msg.confirmed) return
+  msg.confirmed = true
+  loading.value = true
+
+  try {
+    await confirmForm(sessionId.value, (event) => {
+      if (event.type === 'form_fill' && event.data) {
+        chatStore.setFormFill(event.data)
+        messages.value.push({
+          id: nextId++,
+          role: 'assistant',
+          text: currentLang().formFilled,
+        })
+        messages.value.push({
+          id: nextId++,
+          role: 'assistant',
+          text: currentLang().correctionHint,
+        })
+        if (!open.value) hasNewMessage.value = true
+        scrollToBottom()
+      }
+    })
+  } catch {
+    msg.confirmed = false
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleCorrect() {
+  nextTick(() => textareaEl.value?.focus())
 }
 
 onUnmounted(() => abortController?.abort())
@@ -138,7 +263,6 @@ function onKeydown(e: KeyboardEvent) {
   <div class="floating-chat">
     <Transition name="panel">
       <div v-if="open" class="chat-panel">
-
         <!-- Header -->
         <div class="chat-header">
           <div class="header-brand">
@@ -150,9 +274,7 @@ function onKeydown(e: KeyboardEvent) {
             </div>
             <div class="brand-info">
               <span class="brand-name">Demand Assistant</span>
-              <span class="brand-status">
-                <span class="status-dot"></span>Online
-              </span>
+              <span class="brand-status"> <span class="status-dot"></span>Online </span>
             </div>
           </div>
           <div class="header-actions">
@@ -164,10 +286,18 @@ function onKeydown(e: KeyboardEvent) {
                 :class="{ active: language === lang.code }"
                 :aria-label="langNames[lang.code]"
                 @click="setLanguage(lang.code)"
-              >{{ lang.label }}</button>
+              >
+                {{ lang.label }}
+              </button>
             </div>
             <button class="icon-btn" aria-label="Close chat" @click="toggle">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+              >
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>
@@ -175,20 +305,95 @@ function onKeydown(e: KeyboardEvent) {
         </div>
 
         <!-- Messages -->
-        <div ref="messagesEl" class="chat-messages" role="log" aria-live="polite" aria-label="Conversa">
+        <div
+          ref="messagesEl"
+          class="chat-messages"
+          role="log"
+          aria-live="polite"
+          aria-label="Conversa"
+        >
           <TransitionGroup name="msg">
-            <div v-for="msg in messages" :key="msg.id" class="msg-row" :class="msg.role">
+            <div
+              v-for="msg in messages"
+              :key="msg.id"
+              class="msg-row"
+              :class="[msg.role, msg.type === 'confirm' ? 'confirm-row' : '']"
+            >
               <div v-if="msg.role === 'assistant'" class="msg-avatar">
                 <svg viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 2a6 6 0 110 12A6 6 0 0110 4z" opacity=".3"/>
-                  <path d="M6.5 10a1 1 0 112 0 1 1 0 01-2 0zm5 0a1 1 0 112 0 1 1 0 01-2 0z"/>
+                  <path
+                    d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 2a6 6 0 110 12A6 6 0 0110 4z"
+                    opacity=".3"
+                  />
+                  <path d="M6.5 10a1 1 0 112 0 1 1 0 01-2 0zm5 0a1 1 0 112 0 1 1 0 01-2 0z" />
                 </svg>
               </div>
-              <div class="msg-bubble">
+
+              <!-- Confirmation card -->
+              <div v-if="msg.type === 'confirm' && msg.confirmData" class="confirm-card">
+                <p class="confirm-title">{{ currentLang().confirmTitle }}</p>
+                <ul class="confirm-fields">
+                  <li
+                    v-for="[key, val] in Object.entries(msg.confirmData).filter(
+                      ([k]) => k !== 'lowConfidenceFields' && val,
+                    )"
+                    :key="key"
+                  >
+                    <span class="confirm-key">{{ key }}</span>
+                    <span
+                      class="confirm-val"
+                      :class="{ uncertain: msg.confirmData.lowConfidenceFields?.includes(key) }"
+                    >
+                      {{ val }}
+                      <span
+                        v-if="msg.confirmData.lowConfidenceFields?.includes(key)"
+                        class="uncertain-badge"
+                        title="Inferred from context"
+                        >?</span
+                      >
+                    </span>
+                  </li>
+                </ul>
+                <div class="confirm-actions">
+                  <button
+                    class="confirm-btn primary"
+                    :disabled="msg.confirmed || loading"
+                    @click="handleConfirm(msg)"
+                  >
+                    <svg
+                      v-if="msg.confirmed"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      class="check-icon"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414L8.414 15l-4.121-4.121a1 1 0 011.414-1.414L8.414 12.172l6.879-6.879a1 1 0 011.414 0z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                    {{ msg.confirmed ? currentLang().formFilled : currentLang().confirmBtn }}
+                  </button>
+                  <button
+                    class="confirm-btn secondary"
+                    :disabled="msg.confirmed || loading"
+                    @click="handleCorrect"
+                  >
+                    {{ currentLang().correctBtn }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Normal message bubble -->
+              <div v-else class="msg-bubble">
                 <span v-if="msg.role === 'assistant' && !msg.text && loading" class="typing">
                   <span></span><span></span><span></span>
                 </span>
-                <span v-else-if="msg.role === 'assistant'" class="md" v-html="renderMarkdown(msg.text)" />
+                <span
+                  v-else-if="msg.role === 'assistant'"
+                  class="md"
+                  v-html="renderMarkdown(msg.text)"
+                />
                 <template v-else>{{ msg.text }}</template>
               </div>
             </div>
@@ -214,13 +419,14 @@ function onKeydown(e: KeyboardEvent) {
               @click="send"
             >
               <svg viewBox="0 0 20 20" fill="currentColor">
-                <path d="M3.105 2.288a.75.75 0 00-.826.95l1.337 4.01a.75.75 0 00.593.518l5.662.944-5.662.944a.75.75 0 00-.593.519l-1.337 4.01a.75.75 0 00.826.95 19.955 19.955 0 0016.233-8.568.75.75 0 000-.904A19.955 19.955 0 003.105 2.288z" />
+                <path
+                  d="M3.105 2.288a.75.75 0 00-.826.95l1.337 4.01a.75.75 0 00.593.518l5.662.944-5.662.944a.75.75 0 00-.593.519l-1.337 4.01a.75.75 0 00.826.95 19.955 19.955 0 0016.233-8.568.75.75 0 000-.904A19.955 19.955 0 003.105 2.288z"
+                />
               </svg>
             </button>
           </div>
           <p class="footer-hint">{{ currentLang().footerHint }}</p>
         </div>
-
       </div>
     </Transition>
 
@@ -228,10 +434,22 @@ function onKeydown(e: KeyboardEvent) {
     <button class="fab" :class="{ open }" aria-label="Abrir assistente" @click="toggle">
       <Transition name="icon" mode="out-in">
         <svg v-if="!open" key="open" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M4.913 2.658c2.075-.27 4.19-.408 6.337-.408 2.147 0 4.262.139 6.337.408 1.922.25 3.291 1.861 3.405 3.727a4.403 4.403 0 00-1.032-.211 50.89 50.89 0 00-8.42 0c-2.358.196-4.04 2.19-4.04 4.434v4.286a4.47 4.47 0 002.433 3.984L7.28 21.53A.75.75 0 016 21v-4.03a48.527 48.527 0 01-1.087-.128C2.905 16.58 1.5 14.833 1.5 12.862V6.638c0-1.97 1.405-3.718 3.413-3.979z" />
-          <path d="M15.75 7.5c-1.376 0-2.739.057-4.086.169C10.124 7.797 9 9.103 9 10.609v4.285c0 1.507 1.128 2.814 2.67 2.94 1.243.102 2.5.157 3.768.165l2.782 2.781a.75.75 0 001.28-.53v-2.39l.33-.026c1.542-.125 2.67-1.433 2.67-2.94v-4.286c0-1.505-1.125-2.811-2.664-2.94A49.392 49.392 0 0015.75 7.5z" />
+          <path
+            d="M4.913 2.658c2.075-.27 4.19-.408 6.337-.408 2.147 0 4.262.139 6.337.408 1.922.25 3.291 1.861 3.405 3.727a4.403 4.403 0 00-1.032-.211 50.89 50.89 0 00-8.42 0c-2.358.196-4.04 2.19-4.04 4.434v4.286a4.47 4.47 0 002.433 3.984L7.28 21.53A.75.75 0 016 21v-4.03a48.527 48.527 0 01-1.087-.128C2.905 16.58 1.5 14.833 1.5 12.862V6.638c0-1.97 1.405-3.718 3.413-3.979z"
+          />
+          <path
+            d="M15.75 7.5c-1.376 0-2.739.057-4.086.169C10.124 7.797 9 9.103 9 10.609v4.285c0 1.507 1.128 2.814 2.67 2.94 1.243.102 2.5.157 3.768.165l2.782 2.781a.75.75 0 001.28-.53v-2.39l.33-.026c1.542-.125 2.67-1.433 2.67-2.94v-4.286c0-1.505-1.125-2.811-2.664-2.94A49.392 49.392 0 0015.75 7.5z"
+          />
         </svg>
-        <svg v-else key="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <svg
+          v-else
+          key="close"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        >
           <path d="M18 6L6 18M6 6l12 12" />
         </svg>
       </Transition>
@@ -334,8 +552,13 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .header-actions {
@@ -365,7 +588,9 @@ function onKeydown(e: KeyboardEvent) {
   letter-spacing: 0.03em;
 }
 
-.lang-btn:hover { color: #fff; }
+.lang-btn:hover {
+  color: #fff;
+}
 
 .lang-btn.active {
   background: rgba(255, 255, 255, 0.25);
@@ -391,14 +616,20 @@ function onKeydown(e: KeyboardEvent) {
   transition: all var(--transition-fast);
 }
 
-.icon-btn:hover { background: rgba(0, 0, 0, 0.22); color: #fff; }
+.icon-btn:hover {
+  background: rgba(0, 0, 0, 0.22);
+  color: #fff;
+}
 
 .icon-btn:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.6);
   outline-offset: 1px;
 }
 
-.icon-btn svg { width: 0.9rem; height: 0.9rem; }
+.icon-btn svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
 
 /* ── Messages ── */
 .chat-messages {
@@ -413,9 +644,16 @@ function onKeydown(e: KeyboardEvent) {
   scroll-behavior: smooth;
 }
 
-.chat-messages::-webkit-scrollbar { width: 4px; }
-.chat-messages::-webkit-scrollbar-track { background: transparent; }
-.chat-messages::-webkit-scrollbar-thumb { background: var(--color-neutral-300); border-radius: 4px; }
+.chat-messages::-webkit-scrollbar {
+  width: 4px;
+}
+.chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-messages::-webkit-scrollbar-thumb {
+  background: var(--color-neutral-300);
+  border-radius: 4px;
+}
 
 .msg-row {
   display: flex;
@@ -423,7 +661,9 @@ function onKeydown(e: KeyboardEvent) {
   gap: 0.5rem;
 }
 
-.msg-row.user { flex-direction: row-reverse; }
+.msg-row.user {
+  flex-direction: row-reverse;
+}
 
 .msg-avatar {
   width: 1.75rem;
@@ -436,7 +676,11 @@ function onKeydown(e: KeyboardEvent) {
   flex-shrink: 0;
 }
 
-.msg-avatar svg { width: 0.85rem; height: 0.85rem; color: #fff; }
+.msg-avatar svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  color: #fff;
+}
 
 .msg-bubble {
   max-width: 78%;
@@ -479,12 +723,24 @@ function onKeydown(e: KeyboardEvent) {
   animation: bounce 1.4s ease-in-out infinite;
 }
 
-.typing span:nth-child(2) { animation-delay: 0.18s; }
-.typing span:nth-child(3) { animation-delay: 0.36s; }
+.typing span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.typing span:nth-child(3) {
+  animation-delay: 0.36s;
+}
 
 @keyframes bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
-  30% { transform: translateY(-5px); opacity: 1; }
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+  30% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
 }
 
 /* ── Footer / Input ── */
@@ -506,7 +762,9 @@ function onKeydown(e: KeyboardEvent) {
   border: 1.5px solid var(--color-neutral-200);
   border-radius: var(--radius-lg);
   padding: 0.5rem 0.5rem 0.5rem 0.75rem;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .input-box:focus-within {
@@ -529,8 +787,13 @@ function onKeydown(e: KeyboardEvent) {
   padding: 0.2rem 0;
 }
 
-.input-box textarea::placeholder { color: var(--color-neutral-400); }
-.input-box textarea:disabled { opacity: 0.5; cursor: not-allowed; }
+.input-box textarea::placeholder {
+  color: var(--color-neutral-400);
+}
+.input-box textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .send-btn {
   width: 2.1rem;
@@ -565,7 +828,10 @@ function onKeydown(e: KeyboardEvent) {
   outline-offset: 2px;
 }
 
-.send-btn svg { width: 0.9rem; height: 0.9rem; }
+.send-btn svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
 
 .footer-hint {
   font-size: 0.65rem;
@@ -593,15 +859,25 @@ function onKeydown(e: KeyboardEvent) {
   flex-shrink: 0;
 }
 
-.fab:hover { transform: scale(1.07); box-shadow: 0 12px 32px rgba(0,0,0,0.15), 0 6px 16px rgba(0,135,74,0.4); }
-.fab.open { box-shadow: var(--shadow-md); }
+.fab:hover {
+  transform: scale(1.07);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.15),
+    0 6px 16px rgba(0, 135, 74, 0.4);
+}
+.fab.open {
+  box-shadow: var(--shadow-md);
+}
 
 .fab:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 3px;
 }
 
-.fab svg { width: 1.35rem; height: 1.35rem; }
+.fab svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
 
 .fab-badge {
   position: absolute;
@@ -616,39 +892,215 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 @keyframes badge-pop {
-  from { transform: scale(0); opacity: 0; }
-  to   { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ── Confirmation card ── */
+.confirm-row {
+  align-items: flex-start;
+}
+
+.confirm-card {
+  max-width: 88%;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-xl);
+  border-bottom-left-radius: var(--radius-xs);
+  padding: 0.9rem 1rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.confirm-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  margin: 0;
+}
+
+.confirm-fields {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.confirm-fields li {
+  display: flex;
+  gap: 0.5rem;
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.confirm-key {
+  color: var(--color-neutral-500);
+  flex-shrink: 0;
+  min-width: 7rem;
+  font-weight: var(--font-weight-medium);
+}
+
+.confirm-val {
+  color: var(--color-neutral-800);
+  word-break: break-word;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.confirm-val.uncertain {
+  color: var(--color-warning);
+}
+
+.uncertain-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: var(--color-warning);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: var(--font-weight-bold);
+  flex-shrink: 0;
+  cursor: help;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.confirm-btn {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  border: none;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.confirm-btn.primary {
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: var(--shadow-primary);
+}
+
+.confirm-btn.primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.confirm-btn.secondary {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-700);
+  border: 1px solid var(--color-neutral-200);
+}
+
+.confirm-btn.secondary:hover:not(:disabled) {
+  background: var(--color-neutral-200);
+}
+
+.confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.check-icon {
+  width: 0.85rem;
+  height: 0.85rem;
 }
 
 /* ── Markdown ── */
-.md :deep(p) { margin: 0 0 0.35rem; }
-.md :deep(p:last-child) { margin-bottom: 0; }
-.md :deep(ul), .md :deep(ol) { margin: 0.25rem 0 0.35rem; padding-left: 1.2rem; }
-.md :deep(li) { margin-bottom: 0.15rem; }
-.md :deep(strong) { font-weight: var(--font-weight-semibold); }
+.md :deep(p) {
+  margin: 0 0 0.35rem;
+}
+.md :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.md :deep(ul),
+.md :deep(ol) {
+  margin: 0.25rem 0 0.35rem;
+  padding-left: 1.2rem;
+}
+.md :deep(li) {
+  margin-bottom: 0.15rem;
+}
+.md :deep(strong) {
+  font-weight: var(--font-weight-semibold);
+}
 .md :deep(code) {
-  background: rgba(0,0,0,0.06);
+  background: rgba(0, 0, 0, 0.06);
   padding: 0.1em 0.3em;
   border-radius: 3px;
   font-size: 0.85em;
 }
 
 /* ── Transitions ── */
-.panel-enter-active { transition: opacity var(--transition-slow), transform var(--transition-slow); }
-.panel-leave-active { transition: opacity 0.18s var(--ease-in), transform 0.18s var(--ease-in); }
-.panel-enter-from, .panel-leave-to { opacity: 0; transform: translateY(16px) scale(0.96); }
+.panel-enter-active {
+  transition:
+    opacity var(--transition-slow),
+    transform var(--transition-slow);
+}
+.panel-leave-active {
+  transition:
+    opacity 0.18s var(--ease-in),
+    transform 0.18s var(--ease-in);
+}
+.panel-enter-from,
+.panel-leave-to {
+  opacity: 0;
+  transform: translateY(16px) scale(0.96);
+}
 
-.icon-enter-active, .icon-leave-active { transition: opacity var(--transition-fast), transform var(--transition-fast); }
-.icon-enter-from, .icon-leave-to { opacity: 0; transform: rotate(25deg) scale(0.75); }
+.icon-enter-active,
+.icon-leave-active {
+  transition:
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
+}
+.icon-enter-from,
+.icon-leave-to {
+  opacity: 0;
+  transform: rotate(25deg) scale(0.75);
+}
 
-.msg-enter-active { transition: opacity 0.25s var(--ease-out), transform 0.25s var(--ease-out); }
-.msg-enter-from { opacity: 0; transform: translateY(8px); }
+.msg-enter-active {
+  transition:
+    opacity 0.25s var(--ease-out),
+    transform 0.25s var(--ease-out);
+}
+.msg-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .panel-enter-active, .panel-leave-active,
-  .icon-enter-active, .icon-leave-active,
+  .panel-enter-active,
+  .panel-leave-active,
+  .icon-enter-active,
+  .icon-leave-active,
   .msg-enter-active,
-  .fab, .send-btn, .lang-btn {
+  .fab,
+  .send-btn,
+  .lang-btn {
     transition: none;
     animation: none;
   }

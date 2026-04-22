@@ -64,6 +64,15 @@ func (s *ConversationService) AddMessage(sessionID string, msg models.Message) {
 	}
 }
 
+func (s *ConversationService) GetByID(sessionID string) *models.Session {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if entry, ok := s.sessions[sessionID]; ok {
+		return entry.session
+	}
+	return nil
+}
+
 func (s *ConversationService) cleanupLoop() {
 	ticker := time.NewTicker(cleanupInterval)
 	defer ticker.Stop()

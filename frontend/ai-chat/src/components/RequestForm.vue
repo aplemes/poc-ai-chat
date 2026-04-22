@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useChatStore } from '@/stores/chat'
+import { useFieldChatStore } from '@/stores/fieldChat'
+import FieldChatPanel from '@/components/FieldChatPanel.vue'
 
 const requesters = [
   { id: 'ADEO-8052', value: 'Adeo Marketplace Services' },
@@ -96,6 +98,7 @@ const benefitCategories = [
 const timeSensitiveOptions = ['No', 'Legal', 'Security'] as const
 
 const chatStore = useChatStore()
+const fieldChatStore = useFieldChatStore()
 
 const form = ref({
   title: '',
@@ -111,6 +114,7 @@ const form = ref({
 })
 
 const aiFilledFields = ref<Set<string>>(new Set())
+const aiUncertainFields = ref<Set<string>>(new Set())
 const errors = ref<Record<string, string>>({})
 const submitting = ref(false)
 
@@ -119,33 +123,98 @@ watch(
   (data) => {
     if (!data) return
     const filled = new Set<string>()
-    if (data.title) { form.value.title = data.title; filled.add('title') }
-    if (data.businessLine) { form.value.businessLine = data.businessLine; filled.add('businessLine') }
-    if (data.requesterBU) { form.value.requesterBU = data.requesterBU; filled.add('requesterBU') }
+    if (data.title) {
+      form.value.title = data.title
+      filled.add('title')
+    }
+    if (data.businessLine) {
+      form.value.businessLine = data.businessLine
+      filled.add('businessLine')
+    }
+    if (data.requesterBU) {
+      form.value.requesterBU = data.requesterBU
+      filled.add('requesterBU')
+    }
     const busIds = Array.isArray(data.busInterested)
       ? data.busInterested
       : data.busInterested
         ? [data.busInterested as unknown as string]
         : []
-    if (busIds.length) { form.value.busInterested = busIds; filled.add('busInterested') }
-    if (data.timeSensitive) { form.value.timeSensitive = data.timeSensitive; filled.add('timeSensitive') }
-    if (data.whyDemand) { form.value.whyDemand = data.whyDemand; filled.add('whyDemand') }
-    if (data.whoIsImpacted) { form.value.whoIsImpacted = data.whoIsImpacted; filled.add('whoIsImpacted') }
-    if (data.benefitCategory) { form.value.benefitCategory = data.benefitCategory; filled.add('benefitCategory') }
-    if (data.benefitHypothesis) { form.value.benefitHypothesis = data.benefitHypothesis; filled.add('benefitHypothesis') }
-    if (data.measureBenefits) { form.value.measureBenefits = data.measureBenefits; filled.add('measureBenefits') }
+    if (busIds.length) {
+      form.value.busInterested = busIds
+      filled.add('busInterested')
+    }
+    if (data.timeSensitive) {
+      form.value.timeSensitive = data.timeSensitive
+      filled.add('timeSensitive')
+    }
+    if (data.whyDemand) {
+      form.value.whyDemand = data.whyDemand
+      filled.add('whyDemand')
+    }
+    if (data.whoIsImpacted) {
+      form.value.whoIsImpacted = data.whoIsImpacted
+      filled.add('whoIsImpacted')
+    }
+    if (data.benefitCategory) {
+      form.value.benefitCategory = data.benefitCategory
+      filled.add('benefitCategory')
+    }
+    if (data.benefitHypothesis) {
+      form.value.benefitHypothesis = data.benefitHypothesis
+      filled.add('benefitHypothesis')
+    }
+    if (data.measureBenefits) {
+      form.value.measureBenefits = data.measureBenefits
+      filled.add('measureBenefits')
+    }
     aiFilledFields.value = filled
+    aiUncertainFields.value = new Set(data.lowConfidenceFields ?? [])
     chatStore.clearFormFill()
   },
 )
 
-function clearError(field: string) { delete errors.value[field] }
+watch(
+  () => fieldChatStore.pendingFieldFill,
+  (payload) => {
+    if (!payload) return
+    const { fieldName, value } = payload
+    if (fieldName === 'busInterested') {
+      const ids = Array.isArray(value) ? value : [value]
+      form.value.busInterested = ids
+    } else if (fieldName in form.value) {
+      ;(form.value as Record<string, unknown>)[fieldName] = value
+    }
+    aiFilledFields.value.add(fieldName)
+    aiUncertainFields.value.delete(fieldName)
+    fieldChatStore.clearFieldFill()
+  },
+)
+
+function clearError(field: string) {
+  delete errors.value[field]
+}
+
+function clearField(field: string) {
+  aiFilledFields.value.delete(field)
+  delete errors.value[field]
+}
+
+function selectTimeSensitive(opt: string) {
+  form.value.timeSensitive = opt
+  aiFilledFields.value.delete('timeSensitive')
+}
+
+function badgeClass(field: string) {
+  return ['ai-badge', { 'ai-badge--uncertain': aiUncertainFields.value.has(field) }]
+}
 
 function toggleBusInterested(id: string) {
   const idx = form.value.busInterested.indexOf(id)
-  form.value.busInterested = idx === -1
-    ? [...form.value.busInterested, id]
-    : form.value.busInterested.filter((v) => v !== id)
+  form.value.busInterested =
+    idx === -1
+      ? [...form.value.busInterested, id]
+      : form.value.busInterested.filter((v) => v !== id)
   aiFilledFields.value.delete('busInterested')
 }
 
@@ -184,18 +253,25 @@ async function handleSubmit() {
 
 <template>
   <form class="request-form" @submit.prevent="handleSubmit" novalidate>
-
     <!-- Form Header -->
+    <FieldChatPanel />
+
     <div class="form-header">
       <div class="form-header-icon">
         <svg viewBox="0 0 20 20" fill="currentColor">
           <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-          <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" />
+          <path
+            fill-rule="evenodd"
+            d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
+            clip-rule="evenodd"
+          />
         </svg>
       </div>
       <div>
         <h1 class="form-title">New Demand Request</h1>
-        <p class="form-subtitle">Fill in the details below or use the AI assistant to auto-complete the form.</p>
+        <p class="form-subtitle">
+          Fill in the details below or use the AI assistant to auto-complete the form.
+        </p>
       </div>
     </div>
 
@@ -210,81 +286,220 @@ async function handleSubmit() {
       </div>
 
       <div class="fields-grid">
-
         <!-- Title -->
         <div class="field field--full">
           <div class="label-row">
             <label for="title">Title <span class="required">*</span></label>
-            <Transition name="badge"><span v-if="aiFilledFields.has('title')" class="ai-badge"><span class="ai-dot"></span>AI</span></Transition>
+            <div class="label-actions">
+              <button
+                type="button"
+                class="field-ai-btn"
+                :class="{ active: fieldChatStore.activeField === 'title' }"
+                @click="fieldChatStore.openPanel('title')"
+              >
+                ✦
+              </button>
+              <Transition name="badge"
+                ><span v-if="aiFilledFields.has('title')" :class="badgeClass('title')"
+                  ><span class="ai-dot"></span>AI</span
+                ></Transition
+              >
+            </div>
           </div>
-          <p class="field-hint">Start with an infinitive verb + scope. e.g. "Add the new Payment Method X on website"</p>
+          <p class="field-hint">
+            Start with an infinitive verb + scope. e.g. "Add the new Payment Method X on website"
+          </p>
           <input
             id="title"
             v-model="form.title"
             type="text"
             placeholder="Add the new... / Improve the... / Enable..."
             :class="{ 'ai-filled': aiFilledFields.has('title'), 'has-error': errors['title'] }"
-            @input="aiFilledFields.delete('title'); clearError('title')"
+            @input="clearField('title')"
           />
-          <Transition name="err"><p v-if="errors['title']" class="field-error" role="alert">{{ errors['title'] }}</p></Transition>
+          <Transition name="err"
+            ><p v-if="errors['title']" class="field-error" role="alert">
+              {{ errors['title'] }}
+            </p></Transition
+          >
         </div>
 
         <!-- Business Line -->
         <div class="field">
           <div class="label-row">
             <label for="businessLine">Business Line <span class="required">*</span></label>
-            <Transition name="badge"><span v-if="aiFilledFields.has('businessLine')" class="ai-badge"><span class="ai-dot"></span>AI</span></Transition>
+            <div class="label-actions">
+              <button
+                type="button"
+                class="field-ai-btn"
+                :class="{ active: fieldChatStore.activeField === 'businessLine' }"
+                @click="fieldChatStore.openPanel('businessLine')"
+              >
+                ✦
+              </button>
+              <Transition name="badge"
+                ><span v-if="aiFilledFields.has('businessLine')" :class="badgeClass('businessLine')"
+                  ><span class="ai-dot"></span>AI</span
+                ></Transition
+              >
+            </div>
           </div>
-          <div class="select-wrap" :class="{ 'ai-filled': aiFilledFields.has('businessLine'), 'has-error': errors['businessLine'] }">
-            <select id="businessLine" v-model="form.businessLine" @change="aiFilledFields.delete('businessLine'); clearError('businessLine')">
+          <div
+            class="select-wrap"
+            :class="{
+              'ai-filled': aiFilledFields.has('businessLine'),
+              'has-error': errors['businessLine'],
+            }"
+          >
+            <select
+              id="businessLine"
+              v-model="form.businessLine"
+              @change="clearField('businessLine')"
+            >
               <option value="" disabled>Select business line</option>
-              <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.value }}</option>
+              <option v-for="org in organizations" :key="org.id" :value="org.id">
+                {{ org.value }}
+              </option>
             </select>
-            <svg class="select-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+            <svg class="select-chevron" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                clip-rule="evenodd"
+              />
+            </svg>
           </div>
-          <Transition name="err"><p v-if="errors['businessLine']" class="field-error" role="alert">{{ errors['businessLine'] }}</p></Transition>
+          <Transition name="err"
+            ><p v-if="errors['businessLine']" class="field-error" role="alert">
+              {{ errors['businessLine'] }}
+            </p></Transition
+          >
         </div>
 
         <!-- Requester BU -->
         <div class="field">
           <div class="label-row">
             <label for="requesterBU">Requester BU <span class="required">*</span></label>
-            <Transition name="badge"><span v-if="aiFilledFields.has('requesterBU')" class="ai-badge"><span class="ai-dot"></span>AI</span></Transition>
+            <div class="label-actions">
+              <button
+                type="button"
+                class="field-ai-btn"
+                :class="{ active: fieldChatStore.activeField === 'requesterBU' }"
+                @click="fieldChatStore.openPanel('requesterBU')"
+              >
+                ✦
+              </button>
+              <Transition name="badge"
+                ><span v-if="aiFilledFields.has('requesterBU')" :class="badgeClass('requesterBU')"
+                  ><span class="ai-dot"></span>AI</span
+                ></Transition
+              >
+            </div>
           </div>
-          <div class="select-wrap" :class="{ 'ai-filled': aiFilledFields.has('requesterBU'), 'has-error': errors['requesterBU'] }">
-            <select id="requesterBU" v-model="form.requesterBU" @change="aiFilledFields.delete('requesterBU'); clearError('requesterBU')">
+          <div
+            class="select-wrap"
+            :class="{
+              'ai-filled': aiFilledFields.has('requesterBU'),
+              'has-error': errors['requesterBU'],
+            }"
+          >
+            <select id="requesterBU" v-model="form.requesterBU" @change="clearField('requesterBU')">
               <option value="" disabled>Select your BU</option>
-              <option v-for="req in requesters" :key="req.id" :value="req.id">{{ req.value }}</option>
+              <option v-for="req in requesters" :key="req.id" :value="req.id">
+                {{ req.value }}
+              </option>
             </select>
-            <svg class="select-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+            <svg class="select-chevron" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                clip-rule="evenodd"
+              />
+            </svg>
           </div>
-          <Transition name="err"><p v-if="errors['requesterBU']" class="field-error" role="alert">{{ errors['requesterBU'] }}</p></Transition>
+          <Transition name="err"
+            ><p v-if="errors['requesterBU']" class="field-error" role="alert">
+              {{ errors['requesterBU'] }}
+            </p></Transition
+          >
         </div>
 
         <!-- BUs Interested -->
         <div class="field field--full">
           <div class="label-row">
             <label>BUs Interested</label>
-            <Transition name="badge"><span v-if="aiFilledFields.has('busInterested')" class="ai-badge"><span class="ai-dot"></span>AI</span></Transition>
+            <div class="label-actions">
+              <button
+                type="button"
+                class="field-ai-btn"
+                :class="{ active: fieldChatStore.activeField === 'busInterested' }"
+                @click="fieldChatStore.openPanel('busInterested')"
+              >
+                ✦
+              </button>
+              <Transition name="badge"
+                ><span
+                  v-if="aiFilledFields.has('busInterested')"
+                  :class="badgeClass('busInterested')"
+                  ><span class="ai-dot"></span>AI</span
+                ></Transition
+              >
+            </div>
           </div>
           <div class="chips-field" :class="{ 'ai-filled': aiFilledFields.has('busInterested') }">
             <div v-if="form.busInterested.length" class="chips-list">
-              <span v-for="id in form.busInterested" :key="id" class="chip" :class="{ 'chip--ai': aiFilledFields.has('busInterested') }">
+              <span
+                v-for="id in form.busInterested"
+                :key="id"
+                class="chip"
+                :class="{ 'chip--ai': aiFilledFields.has('busInterested') }"
+              >
                 {{ getBuLabel(id) }}
-                <button type="button" class="chip-x" :aria-label="`Remove ${getBuLabel(id)}`" @click="removeBusInterested(id)">
-                  <svg viewBox="0 0 12 12" fill="currentColor"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <button
+                  type="button"
+                  class="chip-x"
+                  :aria-label="`Remove ${getBuLabel(id)}`"
+                  @click="removeBusInterested(id)"
+                >
+                  <svg viewBox="0 0 12 12" fill="currentColor">
+                    <path
+                      d="M1 1l10 10M11 1L1 11"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
                 </button>
               </span>
             </div>
             <div class="select-wrap chips-select">
               <select
                 value=""
-                @change="(e) => { const v = (e.target as HTMLSelectElement).value; if (v) toggleBusInterested(v); (e.target as HTMLSelectElement).value = '' }"
+                @change="
+                  (e) => {
+                    const v = (e.target as HTMLSelectElement).value
+                    if (v) toggleBusInterested(v)
+                    ;(e.target as HTMLSelectElement).value = ''
+                  }
+                "
               >
                 <option value="" disabled>Add a BU...</option>
-                <option v-for="bu in concerned" :key="bu.id" :value="bu.id" :disabled="form.busInterested.includes(bu.id)">{{ bu.value }}</option>
+                <option
+                  v-for="bu in concerned"
+                  :key="bu.id"
+                  :value="bu.id"
+                  :disabled="form.busInterested.includes(bu.id)"
+                >
+                  {{ bu.value }}
+                </option>
               </select>
-              <svg class="select-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+              <svg class="select-chevron" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fill-rule="evenodd"
+                  d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                  clip-rule="evenodd"
+                />
+              </svg>
             </div>
           </div>
         </div>
@@ -293,7 +508,23 @@ async function handleSubmit() {
         <div class="field field--full">
           <div class="label-row">
             <label>Is this demand time sensitive?</label>
-            <Transition name="badge"><span v-if="aiFilledFields.has('timeSensitive')" class="ai-badge"><span class="ai-dot"></span>AI</span></Transition>
+            <div class="label-actions">
+              <button
+                type="button"
+                class="field-ai-btn"
+                :class="{ active: fieldChatStore.activeField === 'timeSensitive' }"
+                @click="fieldChatStore.openPanel('timeSensitive')"
+              >
+                ✦
+              </button>
+              <Transition name="badge"
+                ><span
+                  v-if="aiFilledFields.has('timeSensitive')"
+                  :class="badgeClass('timeSensitive')"
+                  ><span class="ai-dot"></span>AI</span
+                ></Transition
+              >
+            </div>
           </div>
           <div class="segmented" :class="{ 'ai-filled': aiFilledFields.has('timeSensitive') }">
             <button
@@ -302,11 +533,12 @@ async function handleSubmit() {
               type="button"
               class="seg-btn"
               :class="{ active: form.timeSensitive === opt }"
-              @click="form.timeSensitive = opt; aiFilledFields.delete('timeSensitive')"
-            >{{ opt }}</button>
+              @click="selectTimeSensitive(opt)"
+            >
+              {{ opt }}
+            </button>
           </div>
         </div>
-
       </div>
     </section>
 
@@ -321,28 +553,68 @@ async function handleSubmit() {
       </div>
 
       <div class="fields-grid">
-
         <div class="field field--full">
           <div class="label-row">
-            <label for="whyDemand">Why are you making this demand? <span class="required">*</span></label>
-            <Transition name="badge"><span v-if="aiFilledFields.has('whyDemand')" class="ai-badge"><span class="ai-dot"></span>AI</span></Transition>
+            <label for="whyDemand"
+              >Why are you making this demand? <span class="required">*</span></label
+            >
+            <div class="label-actions">
+              <button
+                type="button"
+                class="field-ai-btn"
+                :class="{ active: fieldChatStore.activeField === 'whyDemand' }"
+                @click="fieldChatStore.openPanel('whyDemand')"
+              >
+                ✦
+              </button>
+              <Transition name="badge"
+                ><span v-if="aiFilledFields.has('whyDemand')" :class="badgeClass('whyDemand')"
+                  ><span class="ai-dot"></span>AI</span
+                ></Transition
+              >
+            </div>
           </div>
-          <p class="field-hint">Describe the current situation, pain points, and comparison with competitors.</p>
+          <p class="field-hint">
+            Describe the current situation, pain points, and comparison with competitors.
+          </p>
           <textarea
             id="whyDemand"
             v-model="form.whyDemand"
             rows="4"
             placeholder="The current situation is..."
-            :class="{ 'ai-filled': aiFilledFields.has('whyDemand'), 'has-error': errors['whyDemand'] }"
-            @input="aiFilledFields.delete('whyDemand'); clearError('whyDemand')"
+            :class="{
+              'ai-filled': aiFilledFields.has('whyDemand'),
+              'has-error': errors['whyDemand'],
+            }"
+            @input="clearField('whyDemand')"
           />
-          <Transition name="err"><p v-if="errors['whyDemand']" class="field-error" role="alert">{{ errors['whyDemand'] }}</p></Transition>
+          <Transition name="err"
+            ><p v-if="errors['whyDemand']" class="field-error" role="alert">
+              {{ errors['whyDemand'] }}
+            </p></Transition
+          >
         </div>
 
         <div class="field field--full">
           <div class="label-row">
             <label for="whoIsImpacted">Who is impacted? <span class="required">*</span></label>
-            <Transition name="badge"><span v-if="aiFilledFields.has('whoIsImpacted')" class="ai-badge"><span class="ai-dot"></span>AI</span></Transition>
+            <div class="label-actions">
+              <button
+                type="button"
+                class="field-ai-btn"
+                :class="{ active: fieldChatStore.activeField === 'whoIsImpacted' }"
+                @click="fieldChatStore.openPanel('whoIsImpacted')"
+              >
+                ✦
+              </button>
+              <Transition name="badge"
+                ><span
+                  v-if="aiFilledFields.has('whoIsImpacted')"
+                  :class="badgeClass('whoIsImpacted')"
+                  ><span class="ai-dot"></span>AI</span
+                ></Transition
+              >
+            </div>
           </div>
           <p class="field-hint">Describe the personas and estimated number of users affected.</p>
           <textarea
@@ -350,12 +622,18 @@ async function handleSubmit() {
             v-model="form.whoIsImpacted"
             rows="3"
             placeholder="This affects approximately..."
-            :class="{ 'ai-filled': aiFilledFields.has('whoIsImpacted'), 'has-error': errors['whoIsImpacted'] }"
-            @input="aiFilledFields.delete('whoIsImpacted'); clearError('whoIsImpacted')"
+            :class="{
+              'ai-filled': aiFilledFields.has('whoIsImpacted'),
+              'has-error': errors['whoIsImpacted'],
+            }"
+            @input="clearField('whoIsImpacted')"
           />
-          <Transition name="err"><p v-if="errors['whoIsImpacted']" class="field-error" role="alert">{{ errors['whoIsImpacted'] }}</p></Transition>
+          <Transition name="err"
+            ><p v-if="errors['whoIsImpacted']" class="field-error" role="alert">
+              {{ errors['whoIsImpacted'] }}
+            </p></Transition
+          >
         </div>
-
       </div>
     </section>
 
@@ -370,44 +648,123 @@ async function handleSubmit() {
       </div>
 
       <div class="fields-grid">
-
         <div class="field">
           <div class="label-row">
             <label for="benefitCategory">Benefit Category <span class="required">*</span></label>
-            <Transition name="badge"><span v-if="aiFilledFields.has('benefitCategory')" class="ai-badge"><span class="ai-dot"></span>AI</span></Transition>
+            <div class="label-actions">
+              <button
+                type="button"
+                class="field-ai-btn"
+                :class="{ active: fieldChatStore.activeField === 'benefitCategory' }"
+                @click="fieldChatStore.openPanel('benefitCategory')"
+              >
+                ✦
+              </button>
+              <Transition name="badge"
+                ><span
+                  v-if="aiFilledFields.has('benefitCategory')"
+                  :class="badgeClass('benefitCategory')"
+                  ><span class="ai-dot"></span>AI</span
+                ></Transition
+              >
+            </div>
           </div>
-          <div class="select-wrap" :class="{ 'ai-filled': aiFilledFields.has('benefitCategory'), 'has-error': errors['benefitCategory'] }">
-            <select id="benefitCategory" v-model="form.benefitCategory" @change="aiFilledFields.delete('benefitCategory'); clearError('benefitCategory')">
+          <div
+            class="select-wrap"
+            :class="{
+              'ai-filled': aiFilledFields.has('benefitCategory'),
+              'has-error': errors['benefitCategory'],
+            }"
+          >
+            <select
+              id="benefitCategory"
+              v-model="form.benefitCategory"
+              @change="clearField('benefitCategory')"
+            >
               <option value="" disabled>Select a category</option>
               <option v-for="cat in benefitCategories" :key="cat" :value="cat">{{ cat }}</option>
             </select>
-            <svg class="select-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+            <svg class="select-chevron" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                clip-rule="evenodd"
+              />
+            </svg>
           </div>
-          <Transition name="err"><p v-if="errors['benefitCategory']" class="field-error" role="alert">{{ errors['benefitCategory'] }}</p></Transition>
+          <Transition name="err"
+            ><p v-if="errors['benefitCategory']" class="field-error" role="alert">
+              {{ errors['benefitCategory'] }}
+            </p></Transition
+          >
         </div>
 
         <div class="field field--placeholder"></div>
 
         <div class="field field--full">
           <div class="label-row">
-            <label for="benefitHypothesis">What's your hypothesis to achieve those benefits? <span class="required">*</span></label>
-            <Transition name="badge"><span v-if="aiFilledFields.has('benefitHypothesis')" class="ai-badge"><span class="ai-dot"></span>AI</span></Transition>
+            <label for="benefitHypothesis"
+              >What's your hypothesis to achieve those benefits?
+              <span class="required">*</span></label
+            >
+            <div class="label-actions">
+              <button
+                type="button"
+                class="field-ai-btn"
+                :class="{ active: fieldChatStore.activeField === 'benefitHypothesis' }"
+                @click="fieldChatStore.openPanel('benefitHypothesis')"
+              >
+                ✦
+              </button>
+              <Transition name="badge"
+                ><span
+                  v-if="aiFilledFields.has('benefitHypothesis')"
+                  :class="badgeClass('benefitHypothesis')"
+                  ><span class="ai-dot"></span>AI</span
+                ></Transition
+              >
+            </div>
           </div>
           <textarea
             id="benefitHypothesis"
             v-model="form.benefitHypothesis"
             rows="3"
             placeholder="We believe that by doing X we will achieve Y because..."
-            :class="{ 'ai-filled': aiFilledFields.has('benefitHypothesis'), 'has-error': errors['benefitHypothesis'] }"
-            @input="aiFilledFields.delete('benefitHypothesis'); clearError('benefitHypothesis')"
+            :class="{
+              'ai-filled': aiFilledFields.has('benefitHypothesis'),
+              'has-error': errors['benefitHypothesis'],
+            }"
+            @input="clearField('benefitHypothesis')"
           />
-          <Transition name="err"><p v-if="errors['benefitHypothesis']" class="field-error" role="alert">{{ errors['benefitHypothesis'] }}</p></Transition>
+          <Transition name="err"
+            ><p v-if="errors['benefitHypothesis']" class="field-error" role="alert">
+              {{ errors['benefitHypothesis'] }}
+            </p></Transition
+          >
         </div>
 
         <div class="field field--full">
           <div class="label-row">
-            <label for="measureBenefits">How will you measure success? <span class="required">*</span></label>
-            <Transition name="badge"><span v-if="aiFilledFields.has('measureBenefits')" class="ai-badge"><span class="ai-dot"></span>AI</span></Transition>
+            <label for="measureBenefits"
+              >How will you measure success? <span class="required">*</span></label
+            >
+            <div class="label-actions">
+              <button
+                type="button"
+                class="field-ai-btn"
+                :class="{ active: fieldChatStore.activeField === 'measureBenefits' }"
+                @click="fieldChatStore.openPanel('measureBenefits')"
+              >
+                ✦
+              </button>
+              <Transition name="badge"
+                ><span
+                  v-if="aiFilledFields.has('measureBenefits')"
+                  :class="badgeClass('measureBenefits')"
+                  ><span class="ai-dot"></span>AI</span
+                ></Transition
+              >
+            </div>
           </div>
           <p class="field-hint">Define KPIs and the timeframe to evaluate results.</p>
           <textarea
@@ -415,12 +772,18 @@ async function handleSubmit() {
             v-model="form.measureBenefits"
             rows="3"
             placeholder="We will measure success by tracking..."
-            :class="{ 'ai-filled': aiFilledFields.has('measureBenefits'), 'has-error': errors['measureBenefits'] }"
-            @input="aiFilledFields.delete('measureBenefits'); clearError('measureBenefits')"
+            :class="{
+              'ai-filled': aiFilledFields.has('measureBenefits'),
+              'has-error': errors['measureBenefits'],
+            }"
+            @input="clearField('measureBenefits')"
           />
-          <Transition name="err"><p v-if="errors['measureBenefits']" class="field-error" role="alert">{{ errors['measureBenefits'] }}</p></Transition>
+          <Transition name="err"
+            ><p v-if="errors['measureBenefits']" class="field-error" role="alert">
+              {{ errors['measureBenefits'] }}
+            </p></Transition
+          >
         </div>
-
       </div>
     </section>
 
@@ -429,16 +792,22 @@ async function handleSubmit() {
       <p class="actions-note"><span class="required">*</span> Required fields</p>
       <button type="submit" class="submit-btn" :disabled="submitting">
         <svg v-if="submitting" class="spinner" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25"/>
-          <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25" />
+          <path
+            d="M12 2a10 10 0 0 1 10 10"
+            stroke="currentColor"
+            stroke-width="3"
+            stroke-linecap="round"
+          />
         </svg>
         <svg v-else viewBox="0 0 20 20" fill="currentColor">
-          <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+          <path
+            d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"
+          />
         </svg>
         {{ submitting ? 'Submitting...' : 'Submit Request' }}
       </button>
     </div>
-
   </form>
 </template>
 
@@ -558,8 +927,12 @@ async function handleSubmit() {
   gap: 0.35rem;
 }
 
-.field--full { grid-column: 1 / -1; }
-.field--placeholder { visibility: hidden; }
+.field--full {
+  grid-column: 1 / -1;
+}
+.field--placeholder {
+  visibility: hidden;
+}
 
 /* ── Labels ── */
 .label-row {
@@ -576,13 +949,56 @@ label {
   line-height: 1;
 }
 
-.required { color: var(--color-error); margin-left: 1px; }
+.required {
+  color: var(--color-error);
+  margin-left: 1px;
+}
 
 .field-hint {
   font-size: var(--font-size-xs);
   color: var(--color-neutral-400);
   margin: 0;
   line-height: 1.5;
+}
+
+/* ── Label actions (sparkle button + badge) ── */
+.label-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.field-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-neutral-200);
+  background: transparent;
+  color: var(--color-neutral-400);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+
+.field-ai-btn:hover {
+  background: var(--color-ai-bg);
+  color: var(--color-ai-text);
+  border-color: var(--color-ai-border);
+}
+
+.field-ai-btn.active {
+  background: var(--color-ai-bg);
+  color: var(--color-ai-text);
+  border-color: var(--color-ai-border);
 }
 
 /* ── AI Badge ── */
@@ -601,6 +1017,16 @@ label {
   white-space: nowrap;
 }
 
+.ai-badge--uncertain {
+  background: rgba(217, 119, 6, 0.1);
+  color: #92400e;
+  border-color: rgba(217, 119, 6, 0.3);
+}
+
+.ai-badge--uncertain .ai-dot {
+  background: #d97706;
+}
+
 .ai-dot {
   width: 5px;
   height: 5px;
@@ -610,7 +1036,9 @@ label {
 }
 
 /* ── Inputs ── */
-input, textarea, select {
+input,
+textarea,
+select {
   padding: 0.6rem 0.875rem;
   border: 1.5px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
@@ -619,33 +1047,45 @@ input, textarea, select {
   font-size: var(--font-size-sm);
   font-family: var(--font-family);
   outline: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background var(--transition-fast);
   width: 100%;
   box-sizing: border-box;
 }
 
-input::placeholder, textarea::placeholder { color: var(--color-neutral-400); }
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-neutral-400);
+}
 
-input:hover:not(:disabled), textarea:hover:not(:disabled), select:hover:not(:disabled) {
+input:hover:not(:disabled),
+textarea:hover:not(:disabled),
+select:hover:not(:disabled) {
   border-color: var(--color-neutral-300);
 }
 
-input:focus, textarea:focus {
+input:focus,
+textarea:focus {
   border-color: var(--color-primary);
   background: var(--color-neutral-0);
   box-shadow: 0 0 0 3px rgba(0, 135, 74, 0.1);
 }
 
-input.has-error, textarea.has-error {
+input.has-error,
+textarea.has-error {
   border-color: var(--color-error);
   background: var(--color-error-subtle);
 }
 
-input.has-error:focus, textarea.has-error:focus {
+input.has-error:focus,
+textarea.has-error:focus {
   box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.1);
 }
 
-input.ai-filled, textarea.ai-filled {
+input.ai-filled,
+textarea.ai-filled {
   border-color: var(--color-ai-border);
   background: rgba(237, 233, 254, 0.3);
   box-shadow: 0 0 0 3px rgba(196, 181, 253, 0.2);
@@ -671,9 +1111,19 @@ textarea {
   cursor: pointer;
 }
 
-.select-wrap select:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(0, 135, 74, 0.1); background: var(--color-neutral-0); }
-.select-wrap.has-error select { border-color: var(--color-error); background: var(--color-error-subtle); }
-.select-wrap.ai-filled select { border-color: var(--color-ai-border); background: rgba(237, 233, 254, 0.3); }
+.select-wrap select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 135, 74, 0.1);
+  background: var(--color-neutral-0);
+}
+.select-wrap.has-error select {
+  border-color: var(--color-error);
+  background: var(--color-error-subtle);
+}
+.select-wrap.ai-filled select {
+  border-color: var(--color-ai-border);
+  background: rgba(237, 233, 254, 0.3);
+}
 
 .select-chevron {
   position: absolute;
@@ -694,7 +1144,9 @@ textarea {
   border: 1.5px solid var(--color-neutral-200);
   border-radius: var(--radius-md);
   background: var(--color-neutral-50);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .chips-field:focus-within {
@@ -740,7 +1192,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,0.06);
+  background: rgba(0, 0, 0, 0.06);
   border: none;
   border-radius: 50%;
   cursor: pointer;
@@ -750,12 +1202,30 @@ textarea {
   flex-shrink: 0;
 }
 
-.chip-x:hover { background: rgba(0,0,0,0.14); }
-.chip-x svg { width: 7px; height: 7px; }
+.chip-x:hover {
+  background: rgba(0, 0, 0, 0.14);
+}
+.chip-x svg {
+  width: 7px;
+  height: 7px;
+}
 
-.chips-select { border: none; padding: 0; }
-.chips-select select { background: transparent; border: none; box-shadow: none; font-size: var(--font-size-xs); color: var(--color-neutral-500); padding: 0.25rem 1.75rem 0.25rem 0.25rem; }
-.chips-select select:focus { box-shadow: none; border: none; }
+.chips-select {
+  border: none;
+  padding: 0;
+}
+.chips-select select {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  padding: 0.25rem 1.75rem 0.25rem 0.25rem;
+}
+.chips-select select:focus {
+  box-shadow: none;
+  border: none;
+}
 
 /* ── Segmented Control ── */
 .segmented {
@@ -785,7 +1255,10 @@ textarea {
   transition: all var(--transition-fast);
 }
 
-.seg-btn:hover { color: var(--color-neutral-700); background: rgba(0,0,0,0.04); }
+.seg-btn:hover {
+  color: var(--color-neutral-700);
+  background: rgba(0, 0, 0, 0.04);
+}
 
 .seg-btn.active {
   background: var(--color-neutral-0);
@@ -848,7 +1321,9 @@ textarea {
   box-shadow: 0 6px 20px rgba(0, 135, 74, 0.45);
 }
 
-.submit-btn:active:not(:disabled) { transform: translateY(0); }
+.submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
 
 .submit-btn:disabled {
   opacity: 0.65;
@@ -862,29 +1337,80 @@ textarea {
   outline-offset: 2px;
 }
 
-.submit-btn svg { width: 0.875rem; height: 0.875rem; }
+.submit-btn svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
 
-@keyframes spin { to { transform: rotate(360deg); } }
-.spinner { animation: spin 0.8s linear infinite; }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
 
 /* ── Transitions ── */
-.badge-enter-active, .badge-leave-active { transition: opacity var(--transition-fast), transform var(--transition-fast); }
-.badge-enter-from, .badge-leave-to { opacity: 0; transform: scale(0.75); }
+.badge-enter-active,
+.badge-leave-active {
+  transition:
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
+}
+.badge-enter-from,
+.badge-leave-to {
+  opacity: 0;
+  transform: scale(0.75);
+}
 
-.err-enter-active, .err-leave-active { transition: opacity var(--transition-fast), transform var(--transition-fast); max-height: 2rem; overflow: hidden; }
-.err-enter-from, .err-leave-to { opacity: 0; transform: translateY(-4px); }
+.err-enter-active,
+.err-leave-active {
+  transition:
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
+  max-height: 2rem;
+  overflow: hidden;
+}
+.err-enter-from,
+.err-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition: none !important; animation: none !important; }
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
 @media (max-width: 640px) {
-  .form-header { padding: 1.25rem; }
-  .form-section { padding: 1.25rem; }
-  .fields-grid { grid-template-columns: 1fr; }
-  .field--full { grid-column: 1; }
-  .field--placeholder { display: none; }
-  .form-actions { padding: 1rem 1.25rem; flex-direction: column; gap: 0.75rem; align-items: stretch; }
-  .submit-btn { justify-content: center; }
+  .form-header {
+    padding: 1.25rem;
+  }
+  .form-section {
+    padding: 1.25rem;
+  }
+  .fields-grid {
+    grid-template-columns: 1fr;
+  }
+  .field--full {
+    grid-column: 1;
+  }
+  .field--placeholder {
+    display: none;
+  }
+  .form-actions {
+    padding: 1rem 1.25rem;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+  }
+  .submit-btn {
+    justify-content: center;
+  }
 }
 </style>

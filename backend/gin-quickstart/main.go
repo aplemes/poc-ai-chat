@@ -27,6 +27,8 @@ func main() {
 	api := router.Group("/api")
 	{
 		api.POST("/chat/message", chatHandler.SendMessage)
+		api.POST("/chat/confirm", chatHandler.ConfirmForm)
+		api.POST("/chat/field-message", chatHandler.SendFieldMessage)
 	}
 
 	router.GET("/ping", func(c *gin.Context) {
