@@ -45,6 +45,26 @@ export async function sendMessage(
   return newSessionId
 }
 
+export async function analyzeForm(
+  formData: FormFillData,
+  language: string,
+  onEvent: (event: ChatEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/chat/analyze-form`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ formData, language }),
+    signal,
+  })
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`)
+  }
+
+  await readSSEStream(response, onEvent)
+}
+
 export async function confirmForm(
   sessionId: string,
   onEvent: (event: ChatEvent) => void,
