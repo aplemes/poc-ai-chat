@@ -12,10 +12,16 @@ O usuário descreve sua necessidade no chat flutuante. A IA faz perguntas até t
 │  │  FloatingChat    │         │      RequestForm          │  │
 │  │                  │         │                           │  │
 │  │  • Exibe msgs    │         │  • title                  │  │
-│  │  • Envia msg     │         │  • businessLine           │  │
-│  │  • Stream tokens │         │  • requesterBU            │  │
-│  │  • Recebe        │         │  • busInterested          │  │
-│  │    form_fill ────┼────────►│                           │  │
+│  │  • Envia msg     │         │  • demandScope            │  │
+│  │  • Stream tokens │         │  • businessLine           │  │
+│  │  • Recebe        │         │  • requesterBU            │  │
+│  │    form_fill ────┼────────►│  • busInterested          │  │
+│  │                  │         │  • timeSensitive          │  │
+│  │                  │         │  • whyDemand              │  │
+│  │                  │         │  • whoIsImpacted          │  │
+│  │                  │         │  • benefitCategory        │  │
+│  │                  │         │  • benefitHypothesis      │  │
+│  │                  │         │  • measureBenefits        │  │
 │  └────────┬─────────┘         └──────────────────────────┘  │
 │           │        chatStore (Pinia)                         │
 └───────────┼─────────────────────────────────────────────────┘
@@ -87,17 +93,18 @@ O modelo recebe um **system prompt** descrevendo os campos do formulário e suas
 ```
 Tool: fill_demand_form
 Parâmetros obrigatórios:
-  - title          (string) — verbo infinitivo + escopo
-  - demandScope    (enum)   — "Intra-BU" | "Adeo Platform"
-  - businessLine   (enum)   — IDs 18518–18525
-  - requesterBU    (enum)   — IDs ADEO-XXXX (32 opções)
-  - demandContext  (string) — evento/situação motivador
-  - currentSituation (string) — processos e ferramentas atuais
-  - problemsToSolve  (string) — pontos de atrito e ineficiências
+  - title             (string) — verbo infinitivo + escopo
+  - demandScope       (enum)   — "Intra-BU" | "Adeo Platform"
+  - businessLine      (enum)   — IDs 18518–18525
+  - requesterBU       (enum)   — IDs ADEO-XXXX (32 opções)
+  - whyDemand         (string) — situação atual, dores e contexto motivador
+  - benefitCategory   (enum)   — categoria do benefício esperado
+  - benefitHypothesis (string) — como a demanda vai gerar o benefício
 Parâmetros opcionais:
-  - busInterested  (array)  — IDs 20047–20078
-  - whoIsImpacted  (string) — personas e estimativa de usuários
-  - measureBenefits (string) — métricas e timing
+  - timeSensitive     (enum)   — "Yes" | "No"
+  - busInterested     (array)  — IDs 20047–20078
+  - whoIsImpacted     (string) — personas e estimativa de usuários
+  - measureBenefits   (string) — métricas e timing
 ```
 
 ---
