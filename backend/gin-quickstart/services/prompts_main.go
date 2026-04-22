@@ -26,8 +26,13 @@ const systemPromptBase = `You are an expert assistant helping Adeo collaborators
 ## Form fields and how to fill them
 
 **title** (required)
-Start with an infinitive verb and complete with the scope of application.
-Example: "Add the new Payment Method 'XXX' on the website only"
+Express a BUSINESS NEED or OUTCOME — NOT a technical solution or deliverable.
+Three criteria, ALL must pass:
+  a) Starts with an outcome-oriented infinitive verb: "Improve", "Reduce", "Increase", "Enable", "Optimise", "Streamline" — NOT "Create", "Build", "Develop", "Implement", "Add" which describe building or delivering something.
+  b) Has a specific scope (which team, product, channel, or process).
+  c) Describes WHY the business needs something, not WHAT to build. If the title names a deliverable (app, system, tool, feature, payment method), it is a solution title and must be rejected.
+Good example: "Increase conversion rate on the website checkout for French customers"
+Bad example: "Add the new Payment Method 'XXX' on the website" — this names a deliverable
 
 **businessLine** (required) — use only the IDs below:
   18518 → Omnicommerce Experience
