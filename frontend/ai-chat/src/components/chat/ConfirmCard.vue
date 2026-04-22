@@ -32,11 +32,23 @@ const FIELD_LABELS: Record<string, string> = {
   measureBenefits: 'Measure benefits',
 }
 
-const visibleFields = computed(() =>
-  (Object.entries(props.confirmData) as [string, unknown][]).filter(
-    ([k, val]) => k !== 'lowConfidenceFields' && Boolean(val),
-  ),
-)
+const FIELD_ORDER = [
+  'title',
+  'businessLine',
+  'requesterBU',
+  'busInterested',
+  'timeSensitive',
+  'whyDemand',
+  'whoIsImpacted',
+  'benefitCategory',
+  'benefitHypothesis',
+  'measureBenefits',
+]
+
+const visibleFields = computed(() => {
+  const data = props.confirmData as unknown as Record<string, unknown>
+  return FIELD_ORDER.filter((k) => Boolean(data[k])).map((k) => [k, data[k]] as [string, unknown])
+})
 </script>
 
 <template>

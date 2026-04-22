@@ -2,8 +2,9 @@
 import { useFormContext } from '@/composables/useFormContext'
 import { useFieldChatStore } from '@/stores/fieldChat'
 import { requesters, concerned, organizations, timeSensitiveOptions } from '@/data/formOptions'
+import FieldLabel from './FieldLabel.vue'
 
-const { form, errors, aiFilledFields, clearField, badgeClass } = useFormContext()
+const { form, errors, aiFilledFields, clearField } = useFormContext()
 const fieldChatStore = useFieldChatStore()
 
 function selectTimeSensitive(opt: string) {
@@ -50,29 +51,7 @@ function getBuLabel(id: string): string {
     <div class="fields-grid">
       <!-- Title -->
       <div class="field field--full">
-        <div class="label-row">
-          <label for="title">Title <span class="required">*</span></label>
-          <div class="label-actions">
-            <button
-              type="button"
-              class="field-ai-btn"
-              :class="{ active: fieldChatStore.activeField === 'title' }"
-              aria-label="Open AI assistant for Title"
-              @click="fieldChatStore.openPanel('title')"
-            >
-              ✦
-            </button>
-            <Transition name="badge"
-              ><span
-                v-if="aiFilledFields.has('title')"
-                :class="badgeClass('title')"
-                aria-live="polite"
-                aria-label="Field filled by AI"
-                ><span class="ai-dot"></span>AI</span
-              ></Transition
-            >
-          </div>
-        </div>
+        <FieldLabel field-name="title" label="Title" required />
         <p class="field-hint">
           Start with an infinitive verb + scope. e.g. "Add the new Payment Method X on website"
         </p>
@@ -93,29 +72,7 @@ function getBuLabel(id: string): string {
 
       <!-- Business Line -->
       <div class="field">
-        <div class="label-row">
-          <label for="businessLine">Business Line <span class="required">*</span></label>
-          <div class="label-actions">
-            <button
-              type="button"
-              class="field-ai-btn"
-              :class="{ active: fieldChatStore.activeField === 'businessLine' }"
-              aria-label="Open AI assistant for Business Line"
-              @click="fieldChatStore.openPanel('businessLine')"
-            >
-              ✦
-            </button>
-            <Transition name="badge"
-              ><span
-                v-if="aiFilledFields.has('businessLine')"
-                :class="badgeClass('businessLine')"
-                aria-live="polite"
-                aria-label="Field filled by AI"
-                ><span class="ai-dot"></span>AI</span
-              ></Transition
-            >
-          </div>
-        </div>
+        <FieldLabel field-name="businessLine" label="Business Line" required />
         <div
           class="select-wrap"
           :class="{
@@ -150,29 +107,7 @@ function getBuLabel(id: string): string {
 
       <!-- Requester BU -->
       <div class="field">
-        <div class="label-row">
-          <label for="requesterBU">Requester BU <span class="required">*</span></label>
-          <div class="label-actions">
-            <button
-              type="button"
-              class="field-ai-btn"
-              :class="{ active: fieldChatStore.activeField === 'requesterBU' }"
-              aria-label="Open AI assistant for Requester BU"
-              @click="fieldChatStore.openPanel('requesterBU')"
-            >
-              ✦
-            </button>
-            <Transition name="badge"
-              ><span
-                v-if="aiFilledFields.has('requesterBU')"
-                :class="badgeClass('requesterBU')"
-                aria-live="polite"
-                aria-label="Field filled by AI"
-                ><span class="ai-dot"></span>AI</span
-              ></Transition
-            >
-          </div>
-        </div>
+        <FieldLabel field-name="requesterBU" label="Requester BU" required />
         <div
           class="select-wrap"
           :class="{
@@ -201,29 +136,12 @@ function getBuLabel(id: string): string {
 
       <!-- BUs Interested -->
       <div class="field field--full">
-        <div class="label-row">
-          <label id="busInterested-label">BUs Interested</label>
-          <div class="label-actions">
-            <button
-              type="button"
-              class="field-ai-btn"
-              :class="{ active: fieldChatStore.activeField === 'busInterested' }"
-              aria-label="Open AI assistant for BUs Interested"
-              @click="fieldChatStore.openPanel('busInterested')"
-            >
-              ✦
-            </button>
-            <Transition name="badge"
-              ><span
-                v-if="aiFilledFields.has('busInterested')"
-                :class="badgeClass('busInterested')"
-                aria-live="polite"
-                aria-label="Field filled by AI"
-                ><span class="ai-dot"></span>AI</span
-              ></Transition
-            >
-          </div>
-        </div>
+        <FieldLabel
+          field-name="busInterested"
+          label="BUs Interested"
+          label-id="busInterested-label"
+          :label-for="undefined"
+        />
         <div class="chips-field" :class="{ 'ai-filled': aiFilledFields.has('busInterested') }">
           <div v-if="form.busInterested.length" class="chips-list">
             <span
@@ -275,29 +193,12 @@ function getBuLabel(id: string): string {
 
       <!-- Time Sensitive -->
       <div class="field field--full">
-        <div class="label-row">
-          <label id="timeSensitive-label">Is this demand time sensitive?</label>
-          <div class="label-actions">
-            <button
-              type="button"
-              class="field-ai-btn"
-              :class="{ active: fieldChatStore.activeField === 'timeSensitive' }"
-              aria-label="Open AI assistant for Time Sensitive"
-              @click="fieldChatStore.openPanel('timeSensitive')"
-            >
-              ✦
-            </button>
-            <Transition name="badge"
-              ><span
-                v-if="aiFilledFields.has('timeSensitive')"
-                :class="badgeClass('timeSensitive')"
-                aria-live="polite"
-                aria-label="Field filled by AI"
-                ><span class="ai-dot"></span>AI</span
-              ></Transition
-            >
-          </div>
-        </div>
+        <FieldLabel
+          field-name="timeSensitive"
+          label="Is this demand time sensitive?"
+          label-id="timeSensitive-label"
+          :label-for="undefined"
+        />
         <div
           class="segmented"
           :class="{ 'ai-filled': aiFilledFields.has('timeSensitive') }"

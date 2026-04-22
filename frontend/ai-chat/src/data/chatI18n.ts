@@ -12,7 +12,9 @@ export interface ChatStrings {
   correctBtn: string
   correctionHint: string
   ariaOpenChat: string
+  ariaOpenChatNew: string
   ariaCloseChat: string
+  ariaResetChat: string
   ariaConversation: string
   ariaSend: string
 }
@@ -32,7 +34,9 @@ export const chatI18n: ChatStrings[] = [
     correctBtn: 'Corrigir pelo chat',
     correctionHint: 'Precisa ajustar algo? É só me dizer pelo chat.',
     ariaOpenChat: 'Abrir assistente',
+    ariaOpenChatNew: 'Abrir assistente – nova mensagem',
     ariaCloseChat: 'Fechar chat',
+    ariaResetChat: 'Nova conversa',
     ariaConversation: 'Conversa',
     ariaSend: 'Enviar',
   },
@@ -50,7 +54,9 @@ export const chatI18n: ChatStrings[] = [
     correctBtn: 'Correct via chat',
     correctionHint: 'Need to adjust something? Just tell me in the chat.',
     ariaOpenChat: 'Open assistant',
+    ariaOpenChatNew: 'Open assistant – new message',
     ariaCloseChat: 'Close chat',
+    ariaResetChat: 'New conversation',
     ariaConversation: 'Conversation',
     ariaSend: 'Send',
   },
@@ -68,7 +74,9 @@ export const chatI18n: ChatStrings[] = [
     correctBtn: 'Corregir por chat',
     correctionHint: '¿Necesitas ajustar algo? Solo dímelo por el chat.',
     ariaOpenChat: 'Abrir asistente',
+    ariaOpenChatNew: 'Abrir asistente – nuevo mensaje',
     ariaCloseChat: 'Cerrar chat',
+    ariaResetChat: 'Nueva conversación',
     ariaConversation: 'Conversación',
     ariaSend: 'Enviar',
   },
@@ -86,7 +94,9 @@ export const chatI18n: ChatStrings[] = [
     correctBtn: 'Corriger via chat',
     correctionHint: "Besoin d'ajuster ? Dites-le moi dans le chat.",
     ariaOpenChat: "Ouvrir l'assistant",
+    ariaOpenChatNew: "Ouvrir l'assistant – nouveau message",
     ariaCloseChat: 'Fermer le chat',
+    ariaResetChat: 'Nouvelle conversation',
     ariaConversation: 'Conversation',
     ariaSend: 'Envoyer',
   },

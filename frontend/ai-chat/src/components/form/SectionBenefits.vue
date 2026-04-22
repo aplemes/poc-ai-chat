@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { useFormContext } from '@/composables/useFormContext'
-import { useFieldChatStore } from '@/stores/fieldChat'
 import { benefitCategories } from '@/data/formOptions'
+import FieldLabel from './FieldLabel.vue'
 
-const { form, errors, aiFilledFields, clearField, badgeClass } = useFormContext()
-const fieldChatStore = useFieldChatStore()
+const { form, errors, aiFilledFields, clearField } = useFormContext()
 </script>
 
 <template>
@@ -19,29 +18,7 @@ const fieldChatStore = useFieldChatStore()
 
     <div class="fields-grid">
       <div class="field">
-        <div class="label-row">
-          <label for="benefitCategory">Benefit Category <span class="required">*</span></label>
-          <div class="label-actions">
-            <button
-              type="button"
-              class="field-ai-btn"
-              :class="{ active: fieldChatStore.activeField === 'benefitCategory' }"
-              aria-label="Open AI assistant for Benefit Category"
-              @click="fieldChatStore.openPanel('benefitCategory')"
-            >
-              ✦
-            </button>
-            <Transition name="badge"
-              ><span
-                v-if="aiFilledFields.has('benefitCategory')"
-                :class="badgeClass('benefitCategory')"
-                aria-live="polite"
-                aria-label="Field filled by AI"
-                ><span class="ai-dot"></span>AI</span
-              ></Transition
-            >
-          </div>
-        </div>
+        <FieldLabel field-name="benefitCategory" label="Benefit Category" required />
         <div
           class="select-wrap"
           :class="{
@@ -72,35 +49,12 @@ const fieldChatStore = useFieldChatStore()
         >
       </div>
 
-      <div class="field field--placeholder"></div>
-
       <div class="field field--full">
-        <div class="label-row">
-          <label for="benefitHypothesis"
-            >What's your hypothesis to achieve those benefits?
-            <span class="required">*</span></label
-          >
-          <div class="label-actions">
-            <button
-              type="button"
-              class="field-ai-btn"
-              :class="{ active: fieldChatStore.activeField === 'benefitHypothesis' }"
-              aria-label="Open AI assistant for Benefit Hypothesis"
-              @click="fieldChatStore.openPanel('benefitHypothesis')"
-            >
-              ✦
-            </button>
-            <Transition name="badge"
-              ><span
-                v-if="aiFilledFields.has('benefitHypothesis')"
-                :class="badgeClass('benefitHypothesis')"
-                aria-live="polite"
-                aria-label="Field filled by AI"
-                ><span class="ai-dot"></span>AI</span
-              ></Transition
-            >
-          </div>
-        </div>
+        <FieldLabel
+          field-name="benefitHypothesis"
+          label="What's your hypothesis to achieve those benefits?"
+          required
+        />
         <textarea
           id="benefitHypothesis"
           v-model="form.benefitHypothesis"
@@ -120,31 +74,7 @@ const fieldChatStore = useFieldChatStore()
       </div>
 
       <div class="field field--full">
-        <div class="label-row">
-          <label for="measureBenefits"
-            >How will you measure success? <span class="required">*</span></label
-          >
-          <div class="label-actions">
-            <button
-              type="button"
-              class="field-ai-btn"
-              :class="{ active: fieldChatStore.activeField === 'measureBenefits' }"
-              aria-label="Open AI assistant for Measure Benefits"
-              @click="fieldChatStore.openPanel('measureBenefits')"
-            >
-              ✦
-            </button>
-            <Transition name="badge"
-              ><span
-                v-if="aiFilledFields.has('measureBenefits')"
-                :class="badgeClass('measureBenefits')"
-                aria-live="polite"
-                aria-label="Field filled by AI"
-                ><span class="ai-dot"></span>AI</span
-              ></Transition
-            >
-          </div>
-        </div>
+        <FieldLabel field-name="measureBenefits" label="How will you measure success?" required />
         <p class="field-hint">Define KPIs and the timeframe to evaluate results.</p>
         <textarea
           id="measureBenefits"

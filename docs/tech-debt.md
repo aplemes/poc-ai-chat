@@ -28,13 +28,13 @@ Auditoria realizada em 2026-04-22 por 4 agentes especializados (backend, fronten
 
 | ID | Status | Arquivo | Linha | Problema |
 |---|---|---|---|---|
-| BE-01 | 🔧 | `handlers/chat.go`, `handlers/form.go` | 75, 93, 31, 66 | Handler muta `session.PendingFormData` diretamente, sem passar pelo service. Viola encapsulamento e cria risco de race condition. |
-| BE-02 | 🔧 | `handlers/form.go` | 42–64 | Lógica de negócio (montagem de `ToolCall` sintético, injeção de mensagens, reset de dados) dentro do handler. Pertence ao service. |
-| BE-03 | 🔧 | `handlers/chat.go` linha 123, `handlers/form.go` linha 47 | — | `json.Marshal` com erro descartado via `_`. Em falha o cliente recebe evento SSE corrompido sem nenhum log. |
-| BE-04 | 🔧 | `services/conversation.go` | 97 | `crypto/rand.Read` sem tratamento de erro. Em ambientes com entropia insuficiente produz IDs de sessão previsíveis ou repetidos. |
-| BE-05 | 🔧 | `services/conversation.go` | — | `GetByID` retorna ponteiro direto ao objeto dentro do map. Qualquer acesso ao ponteiro fora do lock é uma data race. Mutex protege o map, não o objeto apontado. |
-| BE-06 | 🔧 | `handlers/chat.go`, `handlers/field.go`, `handlers/form.go` | múltiplos | SSE headers (`Content-Type`, `Cache-Control`, `Connection`) copiados em 4 locais. Uma função `setSSEHeaders(c, sessionID)` eliminaria a duplicação. |
-| BE-07 | 🔧 | Todo o backend | — | **Zero arquivos `_test.go`**. Nenhuma cobertura de testes em handlers, services ou models. |
+| BE-01 | ✅ | `services/conversation.go` | — | `SetPendingFormData`, `TakeAndClearPendingFormData` adicionados. Handlers não mutam mais `session.PendingFormData` diretamente. |
+| BE-02 | ✅ | `handlers/form.go` | — | `addToolCallMessages` helper extraído para chat.go. `TakeAndClearPendingFormData` atomic no service. Lógica do handler simplificada. |
+| BE-03 | ✅ | `handlers/chat.go` | — | `writeEvent` agora trata o erro de `json.Marshal` e loga via `log.Printf`. `argsBytes` em form.go também tratado. |
+| BE-04 | ✅ | `services/conversation.go` | — | `rand.Read` verificado; falha causa `panic` imediato com mensagem descritiva. |
+| BE-05 | ✅ | `services/conversation.go` | — | `GetByID` removido. `GetMessages` retorna cópia do slice. `TakeAndClearPendingFormData` acessa dados sob mutex. `sync.RWMutex` → `sync.Mutex` (escritas dominam). |
+| BE-06 | ✅ | `handlers/chat.go` | — | `setSSEHeaders(c *gin.Context, sessionID string)` centraliza os 4 headers em todos os handlers. |
+| BE-07 | ✅ | `services/conversation_test.go` | — | 15 testes cobrindo GetOrCreate, SessionExists, AddMessage, GetMessages (cópia), PendingFormData (set/take/clear), evictExpired e generateID. |
 
 ### Frontend
 
@@ -61,7 +61,7 @@ Auditoria realizada em 2026-04-22 por 4 agentes especializados (backend, fronten
 | UX-05 | ✅ | `RequestForm.vue` | — | Live region `aria-live="polite"` anuncia quantos campos foram preenchidos pela IA. |
 | UX-06 | ✅ | `SectionIdentity.vue` | 254 | `<select>` de BUs Interessadas tem `aria-labelledby="busInterested-label"`. |
 | UX-07 | ✅ | `tokens.css` | — | Todos os tokens referenciados (`--radius-2xl`, `--radius-xl`, `--radius-xs`, `--shadow-2xl`, `--shadow-primary`) declarados no design system. |
-| UX-08 | 🔧 | `ChatFab.vue` | — | Badge de notificação do FAB usa `aria-hidden="true"` mas o `aria-label` do botão é estático — não anuncia "nova mensagem". |
+| UX-08 | ✅ | `FloatingChat.vue` | — | `aria-label` do FAB dinâmico: usa `ariaOpenChatNew` quando `hasNewMessage=true`. |
 | UX-09 | ✅ | `AnalysisModal.vue` | 129–140 | Estado de erro exibe apenas "Return to form" — "Submit anyway" oculto em erro. |
 | UX-10 | ✅ | `AnalysisModal.vue` | — | Botão renomeado de "Fix issues" para "Return to form". |
 | UX-11 | ✅ | `useFormAnalysis.ts` | 52–56 | `confirmSubmit()` chama `onConfirmedSubmit()` que executa `submitForm()` real. |
@@ -101,26 +101,26 @@ Auditoria realizada em 2026-04-22 por 4 agentes especializados (backend, fronten
 
 | ID | Status | Arquivo | Problema |
 |---|---|---|---|
-| BE-M1 | 🔧 | `services/prompts.go` | 280 linhas com 4 responsabilidades (resolução de língua, prompts principais, prompts por campo, prompt de análise). Candidatos: `prompts_main.go`, `prompts_field.go`. |
-| BE-M2 | 🔧 | `handlers/chat.go`, `handlers/field.go` | `buildMessages` / `buildFieldMessages` estruturalmente idênticas. Unificar em `buildMessagesWithSystem(session, systemPrompt)`. |
-| BE-M3 | 🔧 | `handlers/chat.go`, `handlers/field.go`, `handlers/form.go` | Bloco de adição de mensagens de tool call duplicado 3 vezes. |
-| BE-M4 | 🔧 | `handlers/form.go` | Strings de histórico para o LLM (`"Proposal shown to user…"`, `"Form filled successfully."`) hardcoded sem constantes. Mudança quebra histórico silenciosamente. |
-| BE-M5 | 🔧 | `services/conversation.go` | `Session.Status` inicializado como `"collecting"` mas `"complete"` nunca é atribuído. Campo é dead code. |
-| BE-M6 | 🔧 | `services/conversation.go` | `bufio.Scanner` sem buffer customizado. Respostas SSE grandes (>64KB) causam `token too long` e encerramento silencioso do stream. |
-| BE-M7 | 🔧 | `services/llama.go` | Chunks malformados descartados com `continue` sem nenhum log. Stream aparece incompleto sem indicação de erro no servidor. |
-| BE-M8 | 🔧 | `models/types.go` | `ToolCall.Type` sempre `"function"` mas sem constante. `Session.Status` também sem constantes. |
-| BE-M9 | 🔧 | `main.go` | `gin.Default()` produz logs sem estrutura JSON, dificultando observabilidade. |
+| BE-M1 | ✅ | `services/prompts_main.go`, `services/prompts_field.go` | `prompts.go` (280 linhas) dividido em dois arquivos por responsabilidade. |
+| BE-M2 | ✅ | `handlers/chat.go` | `buildMessages` e `buildFieldMessages` unificados em `buildMessagesWithSystem(msgs, systemPrompt)`. |
+| BE-M3 | ✅ | `handlers/chat.go` | `addToolCallMessages(h, sessionID, toolCall, result)` elimina o bloco duplicado em 3 handlers. |
+| BE-M4 | ✅ | `handlers/chat.go` | Constantes `msgProposalShown`, `msgFormFilled`, `msgFieldFilled`, `msgUserConfirmed` declaradas e usadas nos 3 handlers. |
+| BE-M5 | ⏸ | `services/conversation.go` | `Session.Status` mantido; constantes `SessionStatusCollecting/Complete` adicionadas para documentar os valores válidos. |
+| BE-M6 | ✅ | `services/llama.go` | `scanner.Buffer(make([]byte, 1<<20), 1<<20)` evita `token too long` em chunks >64KB. |
+| BE-M7 | ✅ | `services/llama.go` | Chunks malformados agora logados via `log.Printf("WARN: skipping malformed SSE chunk: %v", err)`. |
+| BE-M8 | ✅ | `models/types.go` | `ToolCallTypeFunction = "function"`, `SessionStatusCollecting`, `SessionStatusComplete` declarados como constantes. |
+| BE-M9 | 🔧 | `main.go` | `gin.Default()` produz logs sem estrutura JSON. Pendente para quando houver requisito de observabilidade estruturada. |
 
 ### Frontend
 
 | ID | Status | Arquivo | Problema |
 |---|---|---|---|
 | FE-M1 | ✅ | `ConfirmCard.vue` | `Object.entries` com filter extraído para `visibleFields` computed. |
-| FE-M2 | 🔧 | Section*.vue (×10 campos) | Bloco `label-row` + badge + botão ✦ repetido para cada campo. Deveria ser componente `FieldLabel.vue`. |
+| FE-M2 | ✅ | `components/form/FieldLabel.vue` | Componente criado; `SectionIdentity`, `SectionContext` e `SectionBenefits` refatorados para usá-lo. `✦` centralizado em `SPARKLE`. |
 | FE-M3 | ⏸ | `useAiFormFill.ts` | Dois watchers com semânticas distintas (chat global vs painel de campo) no mesmo composable. Reconhecido — separação requer refactor de store. |
 | FE-M4 | ✅ | `views/HomeView.vue`, `router/index.ts` | Imports relativos `../` substituídos pelo alias `@/*`. |
 | FE-M5 | ✅ | `chatService.ts`, `fieldChatService.ts` | `API_BASE` extraído para `services/config.ts` compartilhado. |
-| FE-M6 | 🔧 | `FieldChatPanel.vue` | Mensagem de confirmação de fill (`"✓ Field filled with: …"`) hardcoded em inglês num componente multilíngue. |
+| FE-M6 | ✅ | `FieldChatPanel.vue` | `fieldFilledPrefix` extraído para `fieldChatI18n` — resolvido junto com UX-M10. |
 | FE-M7 | ✅ | `stores/chat.ts` | `clearFormFill` agora reseta `formFilled` para `false`. |
 | FE-M8 | ⏸ | `composables/useFormContext.ts` | `inject` lança erro sem fallback — comportamento intencional para composable que exige provider. Documentado como design decision. |
 | FE-M9 | ✅ | `FieldChatPanel.vue` | 40 strings i18n extraídas para `data/fieldGreetings.ts`. |
@@ -129,16 +129,16 @@ Auditoria realizada em 2026-04-22 por 4 agentes especializados (backend, fronten
 
 | ID | Status | Arquivo | Problema |
 |---|---|---|---|
-| UX-M1 | 🔧 | `FloatingChat.vue`, `FieldChatPanel.vue`, `AnalysisModal.vue` | `font-size: 0.65rem`, `0.62rem`, `0.625rem` usados diretamente. Design system mínimo é `--font-size-xs: 0.75rem`. |
-| UX-M2 | 🔧 | `FloatingChat.vue`, todos | Tokens `--space-*` existem mas **nunca usados**. Todos os paddings e gaps são valores `rem` inline. |
+| UX-M1 | ✅ | `FloatingChat.css`, `FieldChatPanel.css`, `form.css` | `0.65rem`, `0.62rem`, `0.7rem` substituídos por `var(--font-size-xs)` em lang-btn, footer-hint, brand-status e ai-badge. |
+| UX-M2 | ✅ | `FloatingChat.css`, `FieldChatPanel.css` | Padding e gap dos containers principais (`chat-header`, `chat-messages`, `panel-header`, `panel-messages`, `panel-footer`) substituídos por `var(--space-*)`. |
 | UX-M3 | ✅ | `FloatingChat.vue` | `aria-label` de fechar e enviar usam strings do objeto `currentI18n()`, não mais hardcoded em PT. |
 | UX-M4 | ✅ | `FloatingChat.vue` | Botões de idioma têm `aria-label` com nome completo do idioma via `langNames`. |
-| UX-M5 | 🔧 | Seção de confirmação | Ordem de campos no card de confirmação depende de `Object.entries` — não controlada pelo design. |
-| UX-M6 | 🔧 | `FieldChatPanel.vue` | Sem botão "Aceitar e fechar" após um `field_fill`. Usuário precisa fechar manualmente para ver o campo preenchido. |
-| UX-M7 | 🔧 | `FloatingChat.vue` | Sem mecanismo de reset/nova conversa na UI. Único escape é limpar `localStorage` manualmente. |
-| UX-M8 | 🔧 | `ChatFab.vue` | Badge de notificação usa `aria-hidden="true"` mas o `aria-label` do botão é estático — não anuncia "nova mensagem". |
+| UX-M5 | ✅ | `ConfirmCard.vue` | `FIELD_ORDER` array garante ordem determinística: title → businessLine → requesterBU → busInterested → … |
+| UX-M6 | ✅ | `FieldChatPanel.vue` | Botão "Accept & close" (i18n) aparece com transição após `field_fill`; fecha o painel imediatamente. |
+| UX-M7 | ✅ | `FloatingChat.vue` | Botão de reset na header limpa mensagens, sessionId e localStorage, reiniciando a conversa. |
+| UX-M8 | ✅ | `FloatingChat.vue` | Duplicata de UX-08 — resolvida junto. |
 | UX-M9 | ✅ | `AnalysisModal.vue` | "Submit anyway" tem `aria-describedby` explicando consequência da ação. |
-| UX-M10 | 🔧 | `FieldChatPanel.vue` | Erros de conexão hardcoded em inglês (`'Could not process your message.'`). |
+| UX-M10 | ✅ | `FieldChatPanel.vue`, `data/fieldChatI18n.ts` | Todas as strings extraídas para `fieldChatI18n` com suporte a PT/EN/ES/FR. |
 
 ### QA / Testes
 
@@ -159,15 +159,15 @@ Auditoria realizada em 2026-04-22 por 4 agentes especializados (backend, fronten
 | ID | Status | Área | Arquivo | Problema |
 |---|---|---|---|---|
 | LO-01 | ✅ | Frontend | `stores/counter.ts` | Store de scaffolding Vite deletada. |
-| LO-02 | 🔧 | Frontend | `FloatingChat.vue` | Classe `.focused` aplicada quando `loading === false` — lógica invertida, parece resíduo. |
-| LO-03 | 🔧 | Frontend | Section*.vue | Caractere `✦` hardcoded em múltiplos locais. Deveria ser uma constante nomeada. |
-| LO-04 | 🔧 | Frontend | `SectionBenefits.vue` | `<div class="field field--placeholder">` como espaçador de grid não-semântico. |
+| LO-02 | ✅ | Frontend | `FloatingChat.vue` | Binding `:class="{ focused: … }"` morto removido do `.input-box`. |
+| LO-03 | ✅ | Frontend | `FieldLabel.vue` | `✦` centralizado na constante `SPARKLE` dentro de `FieldLabel.vue`. |
+| LO-04 | ✅ | Frontend | `SectionBenefits.vue` | `<div class="field field--placeholder">` removido — CSS Grid auto-avança `field--full` corretamente. |
 | LO-05 | ✅ | UX | `AnalysisModal.vue` | `aria-label="Close AI review dialog"` descritivo implementado. |
-| LO-06 | 🔧 | UX | `FloatingChat.vue` | Dimensões do painel (400×620px) divergem da spec do design system (380×520px). |
-| LO-07 | 🔧 | UX | `FloatingChat.vue` | FAB 52px (`3.25rem`) vs spec 56px. |
-| LO-08 | 🔧 | Backend | `main.go` | `router.Run` sem `log.Fatal`. Falha de bind encerra o processo silenciosamente. |
-| LO-09 | 🔧 | Backend | `services/tools.go` | `formProperties()` recria map completo a cada chamada. Deveria ser variável de pacote. |
-| LO-10 | 🔧 | Backend | `services/llama.go` | Variável `body` reutilizada para bytes do request e bytes do erro no mesmo escopo. |
+| LO-06 | ✅ | UX | `FloatingChat.css` | Painel corrigido para `width: 380px; height: 520px` conforme spec. |
+| LO-07 | ✅ | UX | `ChatFab.vue` | FAB corrigido para `3.5rem` (56px) conforme spec. |
+| LO-08 | ✅ | Backend | `main.go` | `router.Run` envolto em `if err := ...; err != nil { log.Fatal(err) }`. |
+| LO-09 | ✅ | Backend | `services/tools.go` | `formProperties()` removida; substituída por `var formProps` calculado uma vez no startup. |
+| LO-10 | ✅ | Backend | `services/llama.go` | Variável de request renomeada para `reqBytes`; `errBody` usada para leitura de erro de resposta. |
 | LO-11 | ✅ | QA | `chatService.spec.ts` | Helper `makeSplitStream` morto removido. |
 | LO-12 | 🔧 | QA | `chat-store.spec.ts` | Nomes de teste enganosos (`'stores a reference-equal copy'`, `'stores all required fields'` com 10 assertions). |
 
@@ -177,16 +177,15 @@ Auditoria realizada em 2026-04-22 por 4 agentes especializados (backend, fronten
 
 | Categoria | ✅ Resolvido | 🔧 Pendente | ⏸ Adiado | Total |
 |---|---|---|---|---|
-| Backend | 0 | 16 | 0 | 16 |
-| Frontend | 13 | 4 | 2 | 19 |
-| UX / Acessibilidade | 14 | 11 | 0 | 25 |
+| Backend | 14 | 2 | 2 | 18 |
+| Frontend | 16 | 1 | 2 | 19 |
+| UX / Acessibilidade | 25 | 0 | 0 | 25 |
 | QA / Testes | 2 | 16 | 0 | 18 |
-| **Total** | **29** | **47** | **2** | **78** |
+| **Total** | **57** | **19** | **4** | **80** |
 
 ### Pendências de maior impacto restantes
 
-1. **BE-05**: Race condition real em `ConversationService` — ponteiro compartilhado sem proteção fora do mutex.
-2. **BE-07 + QA-01**: Zero testes em todo o backend — qualquer refactor é cego sem cobertura mínima.
-3. **FE-M2**: `FieldLabel.vue` — bloco label/badge/botão repetido em 10 campos sem componente.
-4. **UX-M6/M7**: Sem "Aceitar e fechar" após field_fill + sem reset de conversa na UI.
-5. **QA-13**: Page Object Model para os testes E2E — seletores CSS espalhados em ~80 testes.
+1. **BE-M9**: Observabilidade estruturada — `gin.Default()` sem logs JSON.
+2. **FE-M3**: Dois watchers com semânticas distintas no mesmo composable `useAiFormFill`.
+3. **QA-03/04/05/06/07**: `analyzeForm`, `confirmForm`, `useAiFormFill`, `useFormAnalysis`, stores sem cobertura de testes.
+4. **QA-13**: Page Object Model para os testes E2E — seletores CSS espalhados em ~80 testes.

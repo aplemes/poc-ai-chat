@@ -94,6 +94,17 @@ function toggle() {
   }
 }
 
+function resetConversation() {
+  chatStream.abort()
+  chatStream.messages.value = []
+  chatStream.input.value = ''
+  chatStream.loading.value = false
+  sessionId.value = null
+  localStorage.removeItem('chat_session_id')
+  chatStream.addMessage({ role: 'assistant', text: currentI18n().greeting })
+  nextTick(() => textareaEl.value?.focus())
+}
+
 async function send() {
   await chatStream.send(language.value)
 }
@@ -177,6 +188,23 @@ function onKeydown(e: KeyboardEvent) {
                 {{ lang.label }}
               </button>
             </div>
+            <button
+              class="icon-btn"
+              :aria-label="currentI18n().ariaResetChat"
+              @click="resetConversation"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+            </button>
             <button class="icon-btn" :aria-label="currentI18n().ariaCloseChat" @click="toggle">
               <svg
                 viewBox="0 0 24 24"
@@ -208,7 +236,7 @@ function onKeydown(e: KeyboardEvent) {
 
         <!-- Input -->
         <div class="chat-footer">
-          <div class="input-box" :class="{ focused: chatStream.loading.value === false }">
+          <div class="input-box">
             <textarea
               ref="textareaEl"
               v-model="chatStream.input.value"
@@ -240,7 +268,7 @@ function onKeydown(e: KeyboardEvent) {
     <ChatFab
       :open="open"
       :has-new-message="hasNewMessage"
-      :label="currentI18n().ariaOpenChat"
+      :label="hasNewMessage ? currentI18n().ariaOpenChatNew : currentI18n().ariaOpenChat"
       @click="toggle"
     />
   </div>

@@ -39,8 +39,8 @@ defineEmits<{ click: [] }>()
 <style scoped>
 .fab {
   position: relative;
-  width: 3.25rem;
-  height: 3.25rem;
+  width: 3.5rem;
+  height: 3.5rem;
   border-radius: 50%;
   background: var(--gradient-primary);
   color: #fff;

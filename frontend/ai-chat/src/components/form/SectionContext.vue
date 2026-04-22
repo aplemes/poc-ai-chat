@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { useFormContext } from '@/composables/useFormContext'
-import { useFieldChatStore } from '@/stores/fieldChat'
+import FieldLabel from './FieldLabel.vue'
 
-const { form, errors, aiFilledFields, clearField, badgeClass } = useFormContext()
-const fieldChatStore = useFieldChatStore()
+const { form, errors, aiFilledFields, clearField } = useFormContext()
 </script>
 
 <template>
@@ -18,31 +17,7 @@ const fieldChatStore = useFieldChatStore()
 
     <div class="fields-grid">
       <div class="field field--full">
-        <div class="label-row">
-          <label for="whyDemand"
-            >Why are you making this demand? <span class="required">*</span></label
-          >
-          <div class="label-actions">
-            <button
-              type="button"
-              class="field-ai-btn"
-              :class="{ active: fieldChatStore.activeField === 'whyDemand' }"
-              aria-label="Open AI assistant for Why Demand"
-              @click="fieldChatStore.openPanel('whyDemand')"
-            >
-              ✦
-            </button>
-            <Transition name="badge"
-              ><span
-                v-if="aiFilledFields.has('whyDemand')"
-                :class="badgeClass('whyDemand')"
-                aria-live="polite"
-                aria-label="Field filled by AI"
-                ><span class="ai-dot"></span>AI</span
-              ></Transition
-            >
-          </div>
-        </div>
+        <FieldLabel field-name="whyDemand" label="Why are you making this demand?" required />
         <p class="field-hint">
           Describe the current situation, pain points, and comparison with competitors.
         </p>
@@ -65,29 +40,7 @@ const fieldChatStore = useFieldChatStore()
       </div>
 
       <div class="field field--full">
-        <div class="label-row">
-          <label for="whoIsImpacted">Who is impacted? <span class="required">*</span></label>
-          <div class="label-actions">
-            <button
-              type="button"
-              class="field-ai-btn"
-              :class="{ active: fieldChatStore.activeField === 'whoIsImpacted' }"
-              aria-label="Open AI assistant for Who Is Impacted"
-              @click="fieldChatStore.openPanel('whoIsImpacted')"
-            >
-              ✦
-            </button>
-            <Transition name="badge"
-              ><span
-                v-if="aiFilledFields.has('whoIsImpacted')"
-                :class="badgeClass('whoIsImpacted')"
-                aria-live="polite"
-                aria-label="Field filled by AI"
-                ><span class="ai-dot"></span>AI</span
-              ></Transition
-            >
-          </div>
-        </div>
+        <FieldLabel field-name="whoIsImpacted" label="Who is impacted?" required />
         <p class="field-hint">Describe the personas and estimated number of users affected.</p>
         <textarea
           id="whoIsImpacted"

@@ -7,6 +7,7 @@ import { renderMarkdown } from '@/utils/markdown'
 import { useLanguage } from '@/composables/useLanguage'
 import { useChatStream } from '@/composables/useChatStream'
 import { fieldGreetings } from '@/data/fieldGreetings'
+import { fieldChatI18n } from '@/data/fieldChatI18n'
 
 const fieldChatStore = useFieldChatStore()
 
@@ -60,11 +61,17 @@ function trapFocus(e: KeyboardEvent) {
 
 const { language, setLanguage, languages } = useLanguage()
 
+function i18n() {
+  return fieldChatI18n[language.value] ?? fieldChatI18n['en']!
+}
+
 const activeField = computed(() => fieldChatStore.activeField)
 const isOpen = computed(() => activeField.value !== null)
 const fieldLabel = computed(() =>
   activeField.value ? (fieldLabels[activeField.value] ?? activeField.value) : '',
 )
+
+const fieldFilled = ref(false)
 
 const chatStream = useChatStream<FieldChatEvent>({
   messagesEl: () => messagesEl.value,
@@ -76,11 +83,12 @@ const chatStream = useChatStream<FieldChatEvent>({
     } else if (event.type === 'field_fill' && event.data) {
       fieldChatStore.setFieldFill({ fieldName: event.data.fieldName, value: event.data.value })
       if (!assistantMsg.text) {
-        assistantMsg.text = `✓ Field filled with: **${event.data.value}**`
+        assistantMsg.text = `${i18n().fieldFilledPrefix} **${event.data.value}**`
       }
+      fieldFilled.value = true
       scrollToBottom()
     } else if (event.type === 'error') {
-      assistantMsg.text = 'Could not process your message. Try again.'
+      assistantMsg.text = i18n().errorProcessing
     }
   },
   sendFn: async (text, lang, onEvent, signal) => {
@@ -96,14 +104,15 @@ const chatStream = useChatStream<FieldChatEvent>({
       const lastMsg = msgs[msgs.length - 1]
       if (lastMsg?.role === 'assistant') {
         lastMsg.text =
-          err instanceof Error && err.name === 'AbortError' ? '(cancelled)' : 'Connection error.'
+          err instanceof Error && err.name === 'AbortError'
+            ? i18n().cancelled
+            : i18n().connectionError
       }
       return null
     }
   },
 })
 
-// Manage focus trap and focus restoration when panel opens/closes (UX-02)
 watch(isOpen, (open) => {
   if (open) {
     previouslyFocused = document.activeElement as HTMLElement
@@ -116,9 +125,9 @@ watch(isOpen, (open) => {
 
 onBeforeUnmount(() => document.removeEventListener('keydown', trapFocus))
 
-// Reset conversation when field changes
 watch(activeField, (field) => {
   if (!field) return
+  fieldFilled.value = false
   chatStream.abort()
   chatStream.loading.value = false
   chatStream.input.value = ''
@@ -128,7 +137,6 @@ watch(activeField, (field) => {
   nextTick(() => textareaEl.value?.focus())
 })
 
-// Update greeting when language changes while panel is open
 watch(language, (lang) => {
   if (!activeField.value || chatStream.messages.value.length !== 1) return
   const first = chatStream.messages.value[0]
@@ -238,12 +246,28 @@ function onKeydown(e: KeyboardEvent) {
 
           <!-- Input -->
           <div class="panel-footer">
+            <Transition name="accept">
+              <button
+                v-if="fieldFilled"
+                class="accept-close-btn"
+                @click="fieldChatStore.closePanel()"
+              >
+                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path
+                    fill-rule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414L8.414 15l-4.121-4.121a1 1 0 011.414-1.414L8.414 12.172l6.879-6.879a1 1 0 011.414 0z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                {{ i18n().acceptClose }}
+              </button>
+            </Transition>
             <div class="input-box">
               <textarea
                 ref="textareaEl"
                 v-model="chatStream.input.value"
                 rows="1"
-                placeholder="Type your answer..."
+                :placeholder="i18n().placeholder"
                 :disabled="chatStream.loading.value"
                 @keydown="onKeydown"
                 @input="chatStream.autoResize()"
@@ -251,7 +275,7 @@ function onKeydown(e: KeyboardEvent) {
               <button
                 class="send-btn"
                 :disabled="!chatStream.input.value.trim() || chatStream.loading.value"
-                aria-label="Send"
+                :aria-label="i18n().ariaSend"
                 @click="send"
               >
                 <svg viewBox="0 0 20 20" fill="currentColor">
@@ -261,7 +285,7 @@ function onKeydown(e: KeyboardEvent) {
                 </svg>
               </button>
             </div>
-            <p class="footer-hint">Enter to send · Shift+Enter new line · Esc to close</p>
+            <p class="footer-hint">{{ i18n().footerHint }}</p>
           </div>
         </div>
       </div>
@@ -295,5 +319,47 @@ function onKeydown(e: KeyboardEvent) {
   padding: 0.1em 0.3em;
   border-radius: 3px;
   font-size: 0.85em;
+}
+
+/* ── Accept & close button ── */
+.accept-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  font-family: var(--font-family);
+  cursor: pointer;
+  box-shadow: var(--shadow-primary);
+  transition: background var(--transition-fast);
+}
+
+.accept-close-btn:hover {
+  background: var(--color-primary-hover);
+}
+
+.accept-close-btn svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+}
+
+.accept-enter-active,
+.accept-leave-active {
+  transition:
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
+}
+.accept-enter-from,
+.accept-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 </style>
