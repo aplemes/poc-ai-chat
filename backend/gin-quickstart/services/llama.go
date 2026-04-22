@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -16,6 +17,10 @@ import (
 
 const groqAPIURL = "https://api.groq.com/openai/v1/chat/completions"
 const llamaModel = "llama-3.3-70b-versatile"
+
+// sseMaxTokenBytes is the scanner buffer size for reading SSE lines (BE-M6).
+// 1 MiB is generous enough to handle any realistic LLM response chunk.
+const sseMaxTokenBytes = 1 << 20
 
 type LlamaService struct {
 	apiKey string
@@ -77,12 +82,12 @@ func (s *LlamaService) StreamChat(
 		requestBody["tools"] = tools
 		requestBody["tool_choice"] = "auto"
 	}
-	body, err := json.Marshal(requestBody)
+	reqBytes, err := json.Marshal(requestBody)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", groqAPIURL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", groqAPIURL, bytes.NewReader(reqBytes))
 	if err != nil {
 		return nil, err
 	}
@@ -96,11 +101,12 @@ func (s *LlamaService) StreamChat(
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("groq API error %d: %s", resp.StatusCode, body)
+		errBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("groq API error %d: %s", resp.StatusCode, errBody)
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, sseMaxTokenBytes), sseMaxTokenBytes) // BE-M6
 	toolCalls := map[int]*toolCallAccum{}
 
 	for scanner.Scan() {
@@ -115,6 +121,7 @@ func (s *LlamaService) StreamChat(
 
 		var chunk streamChunk
 		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+			log.Printf("WARN: skipping malformed SSE chunk: %v", err) // BE-M7
 			continue
 		}
 		if len(chunk.Choices) == 0 {
@@ -149,7 +156,7 @@ func (s *LlamaService) StreamChat(
 	if acc, ok := toolCalls[0]; ok && acc.Name != "" {
 		return &models.ToolCall{
 			ID:   acc.ID,
-			Type: "function",
+			Type: models.ToolCallTypeFunction,
 			Function: models.FuncCall{
 				Name:      acc.Name,
 				Arguments: acc.Args,

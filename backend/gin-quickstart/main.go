@@ -40,7 +40,9 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	router.Run(":" + port)
+	if err := router.Run(":" + port); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func corsMiddleware() gin.HandlerFunc {

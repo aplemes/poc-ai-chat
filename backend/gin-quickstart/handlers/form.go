@@ -22,51 +22,42 @@ func (h *ChatHandler) ConfirmForm(c *gin.Context) {
 		return
 	}
 
-	session := h.conversations.GetByID(req.SessionID)
-	if session == nil {
+	// TakeAndClearPendingFormData checks session existence and atomically clears the pending data (BE-01/BE-05).
+	formData, sessionExists := h.conversations.TakeAndClearPendingFormData(req.SessionID)
+	if !sessionExists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
 		return
 	}
-
-	formData := session.PendingFormData
 	if formData == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no pending form data to confirm"})
 		return
 	}
 
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
-	c.Header("X-Session-ID", session.ID)
+	setSSEHeaders(c, req.SessionID)
 
-	h.conversations.AddMessage(session.ID, models.Message{
+	h.conversations.AddMessage(req.SessionID, models.Message{
 		Role:    models.RoleUser,
-		Content: "[User confirmed the form proposal]",
+		Content: msgUserConfirmed,
 	})
 
-	argsBytes, _ := json.Marshal(formData)
-	toolCallID := fmt.Sprintf("confirm_%s_%d", session.ID[:8], len(session.Messages))
-	h.conversations.AddMessage(session.ID, models.Message{
-		Role: models.RoleAssistant,
-		ToolCalls: []models.ToolCall{{
-			ID:   toolCallID,
-			Type: "function",
-			Function: models.FuncCall{
-				Name:      "fill_demand_form",
-				Arguments: string(argsBytes),
-			},
-		}},
-	})
-	h.conversations.AddMessage(session.ID, models.Message{
-		Role:       models.RoleTool,
-		ToolCallID: toolCallID,
-		Content:    "Form filled successfully.",
-	})
-
-	session.PendingFormData = nil
+	argsBytes, err := json.Marshal(formData)
+	if err != nil {
+		writeEvent(c, services.ChatEvent{Type: "error", Content: "failed to serialize form data"})
+		return
+	}
+	toolCallID := fmt.Sprintf("confirm_%s_%d", req.SessionID[:8], len(h.conversations.GetMessages(req.SessionID)))
+	syntheticToolCall := &models.ToolCall{
+		ID:   toolCallID,
+		Type: models.ToolCallTypeFunction,
+		Function: models.FuncCall{
+			Name:      "fill_demand_form",
+			Arguments: string(argsBytes),
+		},
+	}
+	addToolCallMessages(h, req.SessionID, syntheticToolCall, msgFormFilled)
 
 	writeEvent(c, services.ChatEvent{Type: "form_fill", Data: *formData})
-	writeEvent(c, services.ChatEvent{Type: "done", Content: session.ID})
+	writeEvent(c, services.ChatEvent{Type: "done", Content: req.SessionID})
 }
 
 type analyzeRequest struct {
@@ -81,9 +72,7 @@ func (h *ChatHandler) AnalyzeForm(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
+	setSSEHeaders(c, "")
 
 	formJSON, err := json.MarshalIndent(req.FormData, "", "  ")
 	if err != nil {

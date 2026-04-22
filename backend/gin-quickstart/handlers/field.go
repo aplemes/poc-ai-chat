@@ -31,12 +31,10 @@ func (h *ChatHandler) SendFieldMessage(c *gin.Context) {
 		Content: req.Message,
 	})
 
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
-	c.Header("X-Session-ID", session.ID)
+	setSSEHeaders(c, session.ID)
 
-	messages := buildFieldMessages(session, req.FieldName, req.Language)
+	msgs := h.conversations.GetMessages(session.ID)
+	messages := buildMessagesWithSystem(msgs, services.BuildFieldSystemPrompt(req.FieldName, req.Language))
 	tools := services.BuildFieldTool(req.FieldName)
 
 	var assistantText string
@@ -59,15 +57,7 @@ func (h *ChatHandler) SendFieldMessage(c *gin.Context) {
 			writeEvent(c, services.ChatEvent{Type: "error", Content: "failed to parse field value: " + err.Error()})
 			return
 		}
-		h.conversations.AddMessage(session.ID, models.Message{
-			Role:      models.RoleAssistant,
-			ToolCalls: []models.ToolCall{*toolCall},
-		})
-		h.conversations.AddMessage(session.ID, models.Message{
-			Role:       models.RoleTool,
-			ToolCallID: toolCall.ID,
-			Content:    "Field filled successfully.",
-		})
+		addToolCallMessages(h, session.ID, toolCall, msgFieldFilled)
 		writeEvent(c, services.ChatEvent{
 			Type: "field_fill",
 			Data: map[string]interface{}{"fieldName": req.FieldName, "value": fieldValue},
@@ -105,11 +95,4 @@ func parseFieldValue(fieldName, arguments string) (interface{}, error) {
 		return nil, err
 	}
 	return s, nil
-}
-
-func buildFieldMessages(session *models.Session, fieldName, language string) []models.Message {
-	messages := []models.Message{
-		{Role: models.RoleSystem, Content: services.BuildFieldSystemPrompt(fieldName, language)},
-	}
-	return append(messages, session.Messages...)
 }

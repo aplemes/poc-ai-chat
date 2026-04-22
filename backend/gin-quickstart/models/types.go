@@ -9,6 +9,15 @@ const (
 	RoleTool      Role = "tool"
 )
 
+// ToolCallTypeFunction is the only type the Groq API currently emits.
+const ToolCallTypeFunction = "function"
+
+// Session status constants.
+const (
+	SessionStatusCollecting = "collecting"
+	SessionStatusComplete   = "complete"
+)
+
 type Message struct {
 	Role       Role       `json:"role"`
 	Content    string     `json:"content"`
@@ -30,7 +39,7 @@ type FuncCall struct {
 type Session struct {
 	ID              string        `json:"id"`
 	Messages        []Message     `json:"messages"`
-	Status          string        `json:"status"` // "collecting" | "complete"
+	Status          string        `json:"status"`
 	PendingFormData *FormFillData `json:"-"`
 }
 
