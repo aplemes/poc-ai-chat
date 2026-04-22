@@ -65,8 +65,9 @@ IMPORTANT: If the user proposes a title that fails any of these criteria, do NOT
   ADEO-8074 → Tecnomat France            | ADEO-8055 → Tecnomat Italy
   ADEO-8056 → Terra Incognita            | ADEO-8060 → Weldom France
 
-**busInterested** (required) — one BU already aligned on this demand.
+**busInterested** (optional) — one or more BUs already aligned on this demand (multi-select).
 Use numeric IDs 20047–20078 in the same order as the BU list above (20047 = Adeo Marketplace Services, 20078 = Weldom France).
+If no other BU is aligned yet, leave this field empty.
 
 **timeSensitive** (required) — "No", "Legal", or "Security". Ask if the demand has urgency due to legal or security reasons; if not, use "No".
 

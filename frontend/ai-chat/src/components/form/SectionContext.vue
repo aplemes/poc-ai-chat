@@ -19,7 +19,7 @@ const { form, errors, aiFilledFields, clearField } = useFormContext()
       <div class="field field--full">
         <FieldLabel field-name="whyDemand" label="Why are you making this demand?" required />
         <p class="field-hint">
-          Describe the current situation, pain points, and comparison with competitors.
+          Describe the triggering event, the current situation and tools in use, and the specific pain points.
         </p>
         <textarea
           id="whyDemand"
