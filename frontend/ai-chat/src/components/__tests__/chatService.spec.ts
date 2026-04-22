@@ -21,24 +21,6 @@ function makeStream(text: string): ReadableStream<Uint8Array> {
 }
 
 /**
- * Builds a ReadableStream that emits chunks with a small simulated delay,
- * useful for testing abort mid-stream.
- */
-function makeSplitStream(chunks: string[]): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder()
-  let i = 0
-  return new ReadableStream<Uint8Array>({
-    pull(controller) {
-      if (i < chunks.length) {
-        controller.enqueue(encoder.encode(chunks[i++]!))
-      } else {
-        controller.close()
-      }
-    },
-  })
-}
-
-/**
  * Formats a single SSE event line.
  */
 function sseEvent(event: ChatEvent): string {

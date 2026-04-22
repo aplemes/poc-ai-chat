@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, provide } from 'vue'
+import { ref, provide, computed } from 'vue'
 import { FORM_CONTEXT_KEY } from '@/composables/useFormContext'
 import { useAiFormFill } from '@/composables/useAiFormFill'
 import { useFormAnalysis } from '@/composables/useFormAnalysis'
@@ -56,9 +56,18 @@ const {
 } = useFormAnalysis(() => ({ ...form.value, lowConfidenceFields: [] }), validate, submitForm)
 
 provide(FORM_CONTEXT_KEY, { form, errors, aiFilledFields, clearField, badgeClass })
+
+// UX-05: announce AI fills to screen readers via live region
+const aiAnnouncement = computed(() =>
+  aiFilledFields.value.size > 0
+    ? `${aiFilledFields.value.size} field${aiFilledFields.value.size > 1 ? 's' : ''} filled by AI assistant`
+    : '',
+)
 </script>
 
 <template>
+  <div aria-live="polite" aria-atomic="true" class="sr-only">{{ aiAnnouncement }}</div>
+
   <form class="request-form" novalidate @submit.prevent="handleSubmit">
     <FieldChatPanel />
 

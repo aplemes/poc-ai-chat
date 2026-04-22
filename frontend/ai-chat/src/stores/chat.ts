@@ -13,6 +13,7 @@ export const useChatStore = defineStore('chat', () => {
 
   function clearFormFill() {
     pendingFormFill.value = null
+    formFilled.value = false
   }
 
   return { pendingFormFill, formFilled, setFormFill, clearFormFill }

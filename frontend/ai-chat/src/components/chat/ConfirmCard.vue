@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { FormFillData } from '@/services/chatService'
 
 interface Props {
@@ -17,19 +18,33 @@ const emit = defineEmits<{
   confirm: []
   correct: []
 }>()
+
+const FIELD_LABELS: Record<string, string> = {
+  title: 'Title',
+  businessLine: 'Business Line',
+  requesterBU: 'Requester BU',
+  busInterested: 'BUs Interested',
+  timeSensitive: 'Time Sensitive',
+  whyDemand: 'Why demand',
+  whoIsImpacted: 'Who is impacted',
+  benefitCategory: 'Benefit category',
+  benefitHypothesis: 'Benefit hypothesis',
+  measureBenefits: 'Measure benefits',
+}
+
+const visibleFields = computed(() =>
+  (Object.entries(props.confirmData) as [string, unknown][]).filter(
+    ([k, val]) => k !== 'lowConfidenceFields' && Boolean(val),
+  ),
+)
 </script>
 
 <template>
   <div class="confirm-card">
     <p class="confirm-title">{{ props.confirmTitle }}</p>
     <ul class="confirm-fields">
-      <li
-        v-for="[key, val] in Object.entries(props.confirmData).filter(
-          ([k]) => k !== 'lowConfidenceFields' && val,
-        )"
-        :key="key"
-      >
-        <span class="confirm-key">{{ key }}</span>
+      <li v-for="[key, val] in visibleFields" :key="key">
+        <span class="confirm-key">{{ FIELD_LABELS[key] ?? key }}</span>
         <span
           class="confirm-val"
           :class="{ uncertain: props.confirmData.lowConfidenceFields?.includes(key) }"
