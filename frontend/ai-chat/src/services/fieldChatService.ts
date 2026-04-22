@@ -1,6 +1,5 @@
 import { readSSEStream } from '@/utils/sse'
-
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080/api'
+import { API_BASE } from '@/services/config'
 
 export interface FieldChatEvent {
   type: 'token' | 'field_fill' | 'done' | 'error'

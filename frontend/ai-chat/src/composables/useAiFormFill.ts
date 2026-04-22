@@ -15,7 +15,8 @@ export function useAiFormFill(form: Ref<FormState>, errors: Ref<Record<string, s
     (data) => {
       if (!data) return
       const filled = new Set<string>()
-      const fieldMap: [keyof FormState, string | undefined][] = [
+      type StringField = keyof Omit<FormState, 'busInterested'>
+      const fieldMap: [StringField, string | undefined][] = [
         ['title', data.title],
         ['businessLine', data.businessLine],
         ['requesterBU', data.requesterBU],
@@ -28,14 +29,14 @@ export function useAiFormFill(form: Ref<FormState>, errors: Ref<Record<string, s
       ]
       for (const [field, value] of fieldMap) {
         if (value) {
-          ;(form.value as Record<string, unknown>)[field] = value
+          form.value[field] = value
           filled.add(field)
         }
       }
       const busIds = Array.isArray(data.busInterested)
         ? data.busInterested
         : data.busInterested
-          ? [data.busInterested as unknown as string]
+          ? [String(data.busInterested)]
           : []
       if (busIds.length) {
         form.value.busInterested = busIds
@@ -55,7 +56,8 @@ export function useAiFormFill(form: Ref<FormState>, errors: Ref<Record<string, s
       if (fieldName === 'busInterested') {
         form.value.busInterested = Array.isArray(value) ? value : [value]
       } else if (fieldName in form.value) {
-        ;(form.value as Record<string, unknown>)[fieldName] = value
+        const key = fieldName as keyof Omit<FormState, 'busInterested'>
+        form.value[key] = Array.isArray(value) ? (value[0] ?? '') : value
       }
       aiFilledFields.value.add(fieldName)
       aiUncertainFields.value.delete(fieldName)

@@ -48,10 +48,7 @@ function sseEvent(event: ChatEvent): string {
 /**
  * Creates a mock fetch response for a successful SSE stream.
  */
-function makeResponse(
-  body: string,
-  headers: Record<string, string> = {},
-): Response {
+function makeResponse(body: string, headers: Record<string, string> = {}): Response {
   const defaultHeaders: Record<string, string> = {
     'Content-Type': 'text/event-stream',
     'X-Session-ID': 'mock-session-001',
@@ -116,8 +113,7 @@ describe('sendMessage', () => {
         measureBenefits: 'Track monthly',
       }
 
-      const body =
-        sseEvent({ type: 'form_fill', data: formFillData }) + sseEvent({ type: 'done' })
+      const body = sseEvent({ type: 'form_fill', data: formFillData }) + sseEvent({ type: 'done' })
 
       vi.mocked(fetch).mockResolvedValueOnce(makeResponse(body))
 
@@ -281,9 +277,7 @@ describe('sendMessage', () => {
     })
 
     it('sends correct request body including sessionId, message, and language', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        makeResponse(sseEvent({ type: 'done' })),
-      )
+      vi.mocked(fetch).mockResolvedValueOnce(makeResponse(sseEvent({ type: 'done' })))
 
       await sendMessage('my-session', 'Hello backend', 'fr', mockOnEvent)
 
@@ -297,9 +291,7 @@ describe('sendMessage', () => {
     })
 
     it('sends null sessionId when none is provided', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        makeResponse(sseEvent({ type: 'done' })),
-      )
+      vi.mocked(fetch).mockResolvedValueOnce(makeResponse(sseEvent({ type: 'done' })))
 
       await sendMessage(null, 'Hello', 'en', mockOnEvent)
 

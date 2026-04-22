@@ -1,21 +1,22 @@
 import { ref } from 'vue'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
 import { analyzeForm, type FormFillData } from '@/services/chatService'
+import { renderMarkdown } from '@/utils/markdown'
 
-export function useFormAnalysis(getFormData: () => FormFillData, validate: () => boolean) {
+export function useFormAnalysis(
+  getFormData: () => FormFillData,
+  validate: () => boolean,
+  onConfirmedSubmit?: () => void,
+) {
   const analysisOpen = ref(false)
   const analysisLoading = ref(false)
   const analysisText = ref('')
   const analysisError = ref('')
   const analysisAbort = ref<AbortController | null>(null)
 
-  function renderMd(text: string) {
-    return DOMPurify.sanitize(marked.parse(text) as string)
-  }
-
   async function handleSubmit() {
     if (!validate()) return
+    // Cancel any in-flight analysis before starting a new one (FE-07)
+    analysisAbort.value?.abort()
     const language = localStorage.getItem('chat_language') ?? 'en'
     const ctrl = new AbortController()
     analysisAbort.value = ctrl
@@ -48,6 +49,12 @@ export function useFormAnalysis(getFormData: () => FormFillData, validate: () =>
     analysisError.value = ''
   }
 
+  // Called when user confirms submission from the analysis modal (UX-11)
+  function confirmSubmit() {
+    closeAnalysis()
+    onConfirmedSubmit?.()
+  }
+
   return {
     analysisOpen,
     analysisLoading,
@@ -55,6 +62,7 @@ export function useFormAnalysis(getFormData: () => FormFillData, validate: () =>
     analysisError,
     handleSubmit,
     closeAnalysis,
-    renderMd,
+    confirmSubmit,
+    renderMd: renderMarkdown,
   }
 }

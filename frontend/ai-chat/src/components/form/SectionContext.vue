@@ -19,30 +19,73 @@ const fieldChatStore = useFieldChatStore()
     <div class="fields-grid">
       <div class="field field--full">
         <div class="label-row">
-          <label for="whyDemand">Why are you making this demand? <span class="required">*</span></label>
+          <label for="whyDemand"
+            >Why are you making this demand? <span class="required">*</span></label
+          >
           <div class="label-actions">
-            <button type="button" class="field-ai-btn" :class="{ active: fieldChatStore.activeField === 'whyDemand' }" @click="fieldChatStore.openPanel('whyDemand')">✦</button>
-            <Transition name="badge"><span v-if="aiFilledFields.has('whyDemand')" :class="badgeClass('whyDemand')"><span class="ai-dot"></span>AI</span></Transition>
+            <button
+              type="button"
+              class="field-ai-btn"
+              :class="{ active: fieldChatStore.activeField === 'whyDemand' }"
+              aria-label="Open AI assistant for Why Demand"
+              @click="fieldChatStore.openPanel('whyDemand')"
+            >
+              ✦
+            </button>
+            <Transition name="badge"
+              ><span
+                v-if="aiFilledFields.has('whyDemand')"
+                :class="badgeClass('whyDemand')"
+                aria-live="polite"
+                aria-label="Field filled by AI"
+                ><span class="ai-dot"></span>AI</span
+              ></Transition
+            >
           </div>
         </div>
-        <p class="field-hint">Describe the current situation, pain points, and comparison with competitors.</p>
+        <p class="field-hint">
+          Describe the current situation, pain points, and comparison with competitors.
+        </p>
         <textarea
           id="whyDemand"
           v-model="form.whyDemand"
           rows="4"
           placeholder="The current situation is..."
-          :class="{ 'ai-filled': aiFilledFields.has('whyDemand'), 'has-error': errors['whyDemand'] }"
+          :class="{
+            'ai-filled': aiFilledFields.has('whyDemand'),
+            'has-error': errors['whyDemand'],
+          }"
           @input="clearField('whyDemand')"
         />
-        <Transition name="err"><p v-if="errors['whyDemand']" class="field-error" role="alert">{{ errors['whyDemand'] }}</p></Transition>
+        <Transition name="err"
+          ><p v-if="errors['whyDemand']" class="field-error" role="alert">
+            {{ errors['whyDemand'] }}
+          </p></Transition
+        >
       </div>
 
       <div class="field field--full">
         <div class="label-row">
           <label for="whoIsImpacted">Who is impacted? <span class="required">*</span></label>
           <div class="label-actions">
-            <button type="button" class="field-ai-btn" :class="{ active: fieldChatStore.activeField === 'whoIsImpacted' }" @click="fieldChatStore.openPanel('whoIsImpacted')">✦</button>
-            <Transition name="badge"><span v-if="aiFilledFields.has('whoIsImpacted')" :class="badgeClass('whoIsImpacted')"><span class="ai-dot"></span>AI</span></Transition>
+            <button
+              type="button"
+              class="field-ai-btn"
+              :class="{ active: fieldChatStore.activeField === 'whoIsImpacted' }"
+              aria-label="Open AI assistant for Who Is Impacted"
+              @click="fieldChatStore.openPanel('whoIsImpacted')"
+            >
+              ✦
+            </button>
+            <Transition name="badge"
+              ><span
+                v-if="aiFilledFields.has('whoIsImpacted')"
+                :class="badgeClass('whoIsImpacted')"
+                aria-live="polite"
+                aria-label="Field filled by AI"
+                ><span class="ai-dot"></span>AI</span
+              ></Transition
+            >
           </div>
         </div>
         <p class="field-hint">Describe the personas and estimated number of users affected.</p>
@@ -51,10 +94,17 @@ const fieldChatStore = useFieldChatStore()
           v-model="form.whoIsImpacted"
           rows="3"
           placeholder="This affects approximately..."
-          :class="{ 'ai-filled': aiFilledFields.has('whoIsImpacted'), 'has-error': errors['whoIsImpacted'] }"
+          :class="{
+            'ai-filled': aiFilledFields.has('whoIsImpacted'),
+            'has-error': errors['whoIsImpacted'],
+          }"
           @input="clearField('whoIsImpacted')"
         />
-        <Transition name="err"><p v-if="errors['whoIsImpacted']" class="field-error" role="alert">{{ errors['whoIsImpacted'] }}</p></Transition>
+        <Transition name="err"
+          ><p v-if="errors['whoIsImpacted']" class="field-error" role="alert">
+            {{ errors['whoIsImpacted'] }}
+          </p></Transition
+        >
       </div>
     </div>
   </section>
