@@ -29,7 +29,7 @@ const systemPromptBase = `You are an expert assistant helping Adeo collaborators
 Express a BUSINESS NEED or OUTCOME — NOT a technical solution or deliverable.
 Three criteria, ALL must pass:
   a) Starts with an outcome-oriented infinitive verb: "Improve", "Reduce", "Increase", "Enable", "Optimise", "Streamline" — NOT "Create", "Build", "Develop", "Implement", "Add" which describe building or delivering something.
-  b) Has a specific scope (which team, product, channel, or process).
+  b) Has a scope that narrows down the business area — a domain, product, channel, process, or team is all acceptable (e.g. "supply chain", "website checkout", "logistics", "the procurement process"). Do NOT fail this criterion just because the scope is broad; fail it only if there is NO scope at all.
   c) Describes WHY the business needs something, not WHAT to build. If the title names a deliverable (app, system, tool, feature, payment method), it is a solution title and MUST be rejected.
 Good example: "Increase conversion rate on the website checkout for French customers"
 Bad example: "Add the new Payment Method 'XXX' on the website" — names a deliverable, not a need
@@ -144,7 +144,7 @@ Review the following dimensions:
 
 1. **Title** — Three criteria, ALL must pass:
    a) Starts with an infinitive verb (e.g. "Improve", "Reduce", "Increase", "Enable") — NOT "Create", "Build", "Develop", "Implement" which describe building a technical solution.
-   b) Has a specific scope (which team, product, or process?).
+   b) Has a scope that narrows down the business area — a domain, product, channel, process, or team is all acceptable (e.g. "supply chain", "website checkout", "logistics"). Fail this criterion ONLY if there is absolutely NO scope (e.g. "Reduce costs" with nothing else).
    c) Expresses a BUSINESS NEED or OUTCOME — NOT a technical solution. "Create the application for X" is a solution title; "Improve X efficiency to reduce costs" is a need title. If the title names a deliverable (app, system, tool, feature), it fails this criterion.
 2. **Why Demand** — Covers all three: triggering event/context + current situation/tools + specific pain points?
 3. **Who Is Impacted** — Names specific persona types AND includes numeric estimates?
