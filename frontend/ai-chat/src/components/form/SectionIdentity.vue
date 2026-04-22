@@ -3,7 +3,7 @@ import { useFormContext } from '@/composables/useFormContext'
 import { useFieldChatStore } from '@/stores/fieldChat'
 import { requesters, concerned, organizations, timeSensitiveOptions } from '@/data/formOptions'
 
-const { form, errors, aiFilledFields, aiUncertainFields, clearField, badgeClass } = useFormContext()
+const { form, errors, aiFilledFields, clearField, badgeClass } = useFormContext()
 const fieldChatStore = useFieldChatStore()
 
 function selectTimeSensitive(opt: string) {
